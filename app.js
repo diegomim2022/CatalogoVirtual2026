@@ -90,8 +90,8 @@ async function initData() {
       description: p['Descripcion'],
       category: p['Categoria'],
       stock: parseInt(p['Stock Disponible']) || 0,
-      wholesalePrice: parseInt(p['Precio Mayorista']) || 0,
-      retailPrice: parseInt(p['Precio Usuario Final']) || 0
+      wholesalePrice: parseInt(p['Precio Mayorista']?.toString().replace(/\D/g, '')) || 0,
+      retailPrice: parseInt(p['Precio Usuario Final']?.toString().replace(/\D/g, '')) || 0
     }));
   }
 
