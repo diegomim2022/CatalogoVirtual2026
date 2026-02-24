@@ -66,46 +66,29 @@ function parseCSV(csv) {
   for (let i = 0; i < csv.length; i++) {
     const char = csv[i];
     const nextChar = csv[i + 1];
-
     if (char === '"') {
-      if (inQuotes && nextChar === '"') {
-        curVal += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
+      if (inQuotes && nextChar === '"') { curVal += '"'; i++; }
+      else { inQuotes = !inQuotes; }
     } else if (char === ',' && !inQuotes) {
-      curRow.push(curVal.trim());
-      curVal = "";
+      curRow.push(curVal.trim()); curVal = "";
     } else if ((char === '\r' || char === '\n') && !inQuotes) {
-      if (curRow.length > 0 || curVal) {
-        curRow.push(curVal.trim());
-        rows.push(curRow);
-      }
-      curRow = [];
-      curVal = "";
+      if (curRow.length > 0 || curVal) { curRow.push(curVal.trim()); rows.push(curRow); }
+      curRow = []; curVal = "";
       if (char === '\r' && nextChar === '\n') i++;
-    } else {
-      curVal += char;
-    }
+    } else { curVal += char; }
   }
-  if (curRow.length > 0 || curVal) {
-    curRow.push(curVal.trim());
-    rows.push(curRow);
-  }
+  if (curRow.length > 0 || curVal) { curRow.push(curVal.trim()); rows.push(curRow); }
 
-  if (rows.length === 0) return [];
-
-  // Normalizar encabezados (quitar comillas, espacios raros y BOM)
-  const headers = rows[0].map(h => h.replace(/^\uFEFF/, '').replace(/^"|"$/g, '').trim());
+  const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+  const rawHeaders = rows[0].map(h => h.replace(/^\uFEFF/, '').replace(/^"|"$/g, '').trim());
+  const normHeaders = rawHeaders.map(norm);
 
   return rows.slice(1).map(row => {
     const obj = {};
-    headers.forEach((header, i) => {
-      if (header) {
-        let val = row[i] || "";
-        obj[header] = val.replace(/^"|"$/g, '').trim();
-      }
+    rawHeaders.forEach((h, i) => {
+      const v = (row[i] || "").replace(/^"|"$/g, '').trim();
+      obj[h] = v;
+      if (normHeaders[i]) obj[normHeaders[i]] = v;
     });
     return obj;
   });
@@ -118,32 +101,24 @@ async function initData() {
   const sheetProducts = await fetchSheetData(CONFIG.gids.productos);
   if (sheetProducts && sheetProducts.length > 0) {
     PRODUCTS = sheetProducts
-      .filter(p => (p['ID Producto'] || p['id producto']) && (p['Nombre'] || p['nombre']))
+      .filter(p => p.idproducto || p['ID Producto'] || p.id)
       .map(p => {
-        // Mapeo flexible para evitar fallos por mayúsculas o espacios
-        const getVal = (keys) => {
-          for (const key of keys) {
-            if (p[key] !== undefined) return p[key];
-          }
-          return "";
+        const getV = (k) => {
+          const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+          return p[n] || p[k] || "";
         };
 
         return {
-          id: getVal(['ID Producto', 'id producto', 'ID']),
-          photo: getVal(['Foto', 'foto']) || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
-          photos: [
-            getVal(['Foto', 'foto']),
-            getVal(['Foto2', 'foto2']),
-            getVal(['Foto3', 'foto3']),
-            getVal(['Foto4', 'foto4'])
-          ].filter(f => f && f.trim() !== ''),
-          reference: getVal(['Referencia', 'referencia', 'Ref', 'ref']) || '',
-          name: getVal(['Nombre', 'nombre']) || 'Sin nombre',
-          description: getVal(['Descripcion', 'descripcion', 'Descripción', 'descripción']) || '',
-          category: getVal(['Categoria', 'categoria', 'Categoría', 'categoría']) || 'Otros',
-          stock: parseInt(getVal(['Stock Disponible', 'stock', 'Stock'])) || 0,
-          wholesalePrice: parseInt(getVal(['Precio Mayorista', 'precio mayorista'])?.toString().replace(/\D/g, '')) || 0,
-          retailPrice: parseInt(getVal(['Precio Usuario Final', 'precio usuario final'])?.toString().replace(/\D/g, '')) || 0
+          id: getV('ID Producto'),
+          photo: getV('Foto') || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
+          photos: [getV('Foto'), getV('Foto2'), getV('Foto3'), getV('Foto4')].filter(f => f && f.trim() !== ''),
+          reference: getV('Referencia') || '',
+          name: getV('Nombre') || 'Sin nombre',
+          description: getV('Descripcion') || '',
+          category: getV('Categoria') || 'Otros',
+          stock: parseInt(getV('Stock Disponible').replace(/\D/g, '')) || 0,
+          wholesalePrice: parseInt(getV('Precio Mayorista').replace(/\D/g, '')) || 0,
+          retailPrice: parseInt(getV('Precio Usuario Final').replace(/\D/g, '')) || 0
         };
       });
   }
