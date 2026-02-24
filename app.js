@@ -57,14 +57,38 @@ async function fetchSheetData(gid) {
 }
 
 function parseCSV(csv) {
-  const lines = csv.split('\n');
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-  return lines.slice(1).filter(line => line.trim()).map(line => {
-    // Basic CSV parser handle commas inside quotes if needed later, but simple for now
-    const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+  if (!csv) return [];
+
+  // Robust CSV parser to handle commas within quotes
+  const parseLine = (line) => {
+    const result = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(cur.trim());
+        cur = "";
+      } else {
+        cur += char;
+      }
+    }
+    result.push(cur.trim());
+    return result.map(v => v.replace(/^"|"$/g, '').trim());
+  };
+
+  const lines = csv.split(/\r?\n/).filter(line => line.trim());
+  if (lines.length === 0) return [];
+
+  const headers = parseLine(lines[0]);
+
+  return lines.slice(1).map(line => {
+    const values = parseLine(line);
     const obj = {};
     headers.forEach((header, i) => {
-      obj[header] = values[i];
+      if (header) obj[header] = values[i] || "";
     });
     return obj;
   });
@@ -76,23 +100,25 @@ async function initData() {
 
   const sheetProducts = await fetchSheetData(CONFIG.gids.productos);
   if (sheetProducts && sheetProducts.length > 0) {
-    PRODUCTS = sheetProducts.map(p => ({
-      id: p['ID Producto'],
-      photo: p['Foto'] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80',
-      photos: [
-        p['Foto'],
-        p['Foto2'],
-        p['Foto3'],
-        p['Foto4']
-      ].filter(f => f && f.trim() !== ''),
-      reference: p['Referencia'],
-      name: p['Nombre'],
-      description: p['Descripcion'],
-      category: p['Categoria'],
-      stock: parseInt(p['Stock Disponible']) || 0,
-      wholesalePrice: parseInt(p['Precio Mayorista']?.toString().replace(/\D/g, '')) || 0,
-      retailPrice: parseInt(p['Precio Usuario Final']?.toString().replace(/\D/g, '')) || 0
-    }));
+    PRODUCTS = sheetProducts
+      .filter(p => p['ID Producto'] && p['Nombre']) // Evitar filas vacías
+      .map(p => ({
+        id: p['ID Producto'],
+        photo: p['Foto'] || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
+        photos: [
+          p['Foto'],
+          p['Foto2'],
+          p['Foto3'],
+          p['Foto4']
+        ].filter(f => f && f.trim() !== ''),
+        reference: p['Referencia'] || '',
+        name: p['Nombre'] || 'Producto sin nombre',
+        description: p['Descripcion'] || '',
+        category: p['Categoria'] || 'Otros',
+        stock: parseInt(p['Stock Disponible']) || 0,
+        wholesalePrice: parseInt(p['Precio Mayorista']?.toString().replace(/\D/g, '')) || 0,
+        retailPrice: parseInt(p['Precio Usuario Final']?.toString().replace(/\D/g, '')) || 0
+      }));
   }
 
   const sheetClients = await fetchSheetData(CONFIG.gids.clientes);
