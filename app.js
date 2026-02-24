@@ -209,18 +209,37 @@ function handleLogin(e) {
   const pin = document.getElementById('login-pin').value.trim();
   const errorEl = document.getElementById('login-error');
 
-  const client = DEMO_CLIENTS.find(c => c.id === clientId && c.pin === pin);
+  if (!clientId) return;
+
+  // Search in database
+  const client = DEMO_CLIENTS.find(c => c.id === clientId);
 
   if (client) {
-    state.currentUser = client;
+    // Registered client: Check PIN
+    if (client.pin === pin) {
+      state.currentUser = client;
+      loginSuccess();
+    } else {
+      errorEl.classList.add('show');
+      errorEl.textContent = '❌ PIN incorrecto para este usuario.';
+      document.getElementById('login-pin').value = '';
+    }
+  } else {
+    // New client: Allow access as 'Usuario Final'
+    state.currentUser = {
+      id: clientId,
+      name: 'Cliente ' + clientId,
+      type: 'Usuario Final',
+      phone: ''
+    };
+    loginSuccess();
+  }
+
+  function loginSuccess() {
     errorEl.classList.remove('show');
     navigateTo('home');
     renderHeader();
     updateCartBadge();
-  } else {
-    errorEl.classList.add('show');
-    errorEl.textContent = '❌ Credenciales incorrectas. Verifica tu ID y PIN.';
-    document.getElementById('login-pin').value = '';
   }
 }
 
@@ -240,8 +259,10 @@ function renderHeader() {
   const el = document.getElementById('header-user-name');
   const avatar = document.getElementById('header-avatar');
   const type = document.getElementById('header-user-type');
-  if (el) el.textContent = state.currentUser.name;
-  if (avatar) avatar.textContent = state.currentUser.name.charAt(0).toUpperCase();
+
+  const userName = state.currentUser.name || 'Cliente';
+  if (el) el.textContent = userName;
+  if (avatar) avatar.textContent = userName.charAt(0).toUpperCase();
   if (type) type.textContent = state.currentUser.type === 'Mayorista' ? '💎 Mayorista' : '👤 Usuario Final';
 }
 
