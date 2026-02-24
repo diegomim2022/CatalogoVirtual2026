@@ -58,37 +58,54 @@ async function fetchSheetData(gid) {
 
 function parseCSV(csv) {
   if (!csv) return [];
+  const rows = [];
+  let curVal = "";
+  let curRow = [];
+  let inQuotes = false;
 
-  // Robust CSV parser to handle commas within quotes
-  const parseLine = (line) => {
-    const result = [];
-    let cur = "";
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        result.push(cur.trim());
-        cur = "";
+  for (let i = 0; i < csv.length; i++) {
+    const char = csv[i];
+    const nextChar = csv[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        curVal += '"';
+        i++;
       } else {
-        cur += char;
+        inQuotes = !inQuotes;
       }
+    } else if (char === ',' && !inQuotes) {
+      curRow.push(curVal.trim());
+      curVal = "";
+    } else if ((char === '\r' || char === '\n') && !inQuotes) {
+      if (curRow.length > 0 || curVal) {
+        curRow.push(curVal.trim());
+        rows.push(curRow);
+      }
+      curRow = [];
+      curVal = "";
+      if (char === '\r' && nextChar === '\n') i++;
+    } else {
+      curVal += char;
     }
-    result.push(cur.trim());
-    return result.map(v => v.replace(/^"|"$/g, '').trim());
-  };
+  }
+  if (curRow.length > 0 || curVal) {
+    curRow.push(curVal.trim());
+    rows.push(curRow);
+  }
 
-  const lines = csv.split(/\r?\n/).filter(line => line.trim());
-  if (lines.length === 0) return [];
+  if (rows.length === 0) return [];
 
-  const headers = parseLine(lines[0]);
+  // Normalizar encabezados (quitar comillas, espacios raros y BOM)
+  const headers = rows[0].map(h => h.replace(/^\uFEFF/, '').replace(/^"|"$/g, '').trim());
 
-  return lines.slice(1).map(line => {
-    const values = parseLine(line);
+  return rows.slice(1).map(row => {
     const obj = {};
     headers.forEach((header, i) => {
-      if (header) obj[header] = values[i] || "";
+      if (header) {
+        let val = row[i] || "";
+        obj[header] = val.replace(/^"|"$/g, '').trim();
+      }
     });
     return obj;
   });
@@ -101,24 +118,34 @@ async function initData() {
   const sheetProducts = await fetchSheetData(CONFIG.gids.productos);
   if (sheetProducts && sheetProducts.length > 0) {
     PRODUCTS = sheetProducts
-      .filter(p => p['ID Producto'] && p['Nombre']) // Evitar filas vacías
-      .map(p => ({
-        id: p['ID Producto'],
-        photo: p['Foto'] || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
-        photos: [
-          p['Foto'],
-          p['Foto2'],
-          p['Foto3'],
-          p['Foto4']
-        ].filter(f => f && f.trim() !== ''),
-        reference: p['Referencia'] || '',
-        name: p['Nombre'] || 'Producto sin nombre',
-        description: p['Descripcion'] || '',
-        category: p['Categoria'] || 'Otros',
-        stock: parseInt(p['Stock Disponible']) || 0,
-        wholesalePrice: parseInt(p['Precio Mayorista']?.toString().replace(/\D/g, '')) || 0,
-        retailPrice: parseInt(p['Precio Usuario Final']?.toString().replace(/\D/g, '')) || 0
-      }));
+      .filter(p => (p['ID Producto'] || p['id producto']) && (p['Nombre'] || p['nombre']))
+      .map(p => {
+        // Mapeo flexible para evitar fallos por mayúsculas o espacios
+        const getVal = (keys) => {
+          for (const key of keys) {
+            if (p[key] !== undefined) return p[key];
+          }
+          return "";
+        };
+
+        return {
+          id: getVal(['ID Producto', 'id producto', 'ID']),
+          photo: getVal(['Foto', 'foto']) || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
+          photos: [
+            getVal(['Foto', 'foto']),
+            getVal(['Foto2', 'foto2']),
+            getVal(['Foto3', 'foto3']),
+            getVal(['Foto4', 'foto4'])
+          ].filter(f => f && f.trim() !== ''),
+          reference: getVal(['Referencia', 'referencia', 'Ref', 'ref']) || '',
+          name: getVal(['Nombre', 'nombre']) || 'Sin nombre',
+          description: getVal(['Descripcion', 'descripcion', 'Descripción', 'descripción']) || '',
+          category: getVal(['Categoria', 'categoria', 'Categoría', 'categoría']) || 'Otros',
+          stock: parseInt(getVal(['Stock Disponible', 'stock', 'Stock'])) || 0,
+          wholesalePrice: parseInt(getVal(['Precio Mayorista', 'precio mayorista'])?.toString().replace(/\D/g, '')) || 0,
+          retailPrice: parseInt(getVal(['Precio Usuario Final', 'precio usuario final'])?.toString().replace(/\D/g, '')) || 0
+        };
+      });
   }
 
   const sheetClients = await fetchSheetData(CONFIG.gids.clientes);
