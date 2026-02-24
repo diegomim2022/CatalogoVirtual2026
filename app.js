@@ -98,11 +98,11 @@ async function initData() {
   const sheetClients = await fetchSheetData(CONFIG.gids.clientes);
   if (sheetClients && sheetClients.length > 0) {
     DEMO_CLIENTS = sheetClients.map(c => ({
-      id: c['Identificacion'],
-      pin: c['PIN'],
+      id: c['Identificacion']?.toString().trim(),
+      pin: c['PIN']?.toString().trim() || '',
       name: c['Nombre'],
       type: c['Tipo Cliente'],
-      phone: c['Telefono WhatsApp']
+      phone: c['Telefono WhatsApp']?.toString().trim() || ''
     }));
   }
 
@@ -211,36 +211,29 @@ function handleLogin(e) {
 
   if (!clientId) return;
 
-  // Search in database
-  const client = DEMO_CLIENTS.find(c => c.id === clientId);
+  // 1. Intentar encontrar coincidencia exacta (ID + PIN)
+  const validClient = DEMO_CLIENTS.find(c => c.id === clientId && c.pin === pin);
 
-  if (client) {
-    // Registered client: Check PIN
-    if (client.pin === pin) {
-      state.currentUser = client;
-      loginSuccess();
-    } else {
-      errorEl.classList.add('show');
-      errorEl.textContent = '❌ PIN incorrecto para este usuario.';
-      document.getElementById('login-pin').value = '';
-    }
+  if (validClient) {
+    // Si coincide ID y PIN, entra con su perfil original (ej. Mayorista)
+    state.currentUser = validClient;
   } else {
-    // New client: Allow access as 'Usuario Final'
+    // 2. Si no coincide o no tiene PIN, entra como 'Usuario Final'
+    const existingClient = DEMO_CLIENTS.find(c => c.id === clientId);
+
     state.currentUser = {
       id: clientId,
-      name: 'Cliente ' + clientId,
+      name: existingClient ? existingClient.name : ('Cliente ' + clientId),
       type: 'Usuario Final',
-      phone: ''
+      phone: existingClient ? existingClient.phone : ''
     };
-    loginSuccess();
   }
 
-  function loginSuccess() {
-    errorEl.classList.remove('show');
-    navigateTo('home');
-    renderHeader();
-    updateCartBadge();
-  }
+  // Éxito de login para todos
+  errorEl.classList.remove('show');
+  navigateTo('home');
+  renderHeader();
+  updateCartBadge();
 }
 
 function logout() {
