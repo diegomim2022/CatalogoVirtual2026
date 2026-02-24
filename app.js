@@ -19,13 +19,19 @@ let PRODUCTS = [];
 
 let DEMO_CLIENTS = [];
 
-const CATEGORIES = [
-  { id: 'all', label: 'Todos', icon: '🏷️' },
-  { id: 'Ropa', label: 'Ropa', icon: '👕' },
-  { id: 'Zapatos', label: 'Zapatos', icon: '👟' },
-  { id: 'Bolsos', label: 'Bolsos', icon: '👜' },
-  { id: 'Accesorios', label: 'Accesorios', icon: '⌚' }
+let CATEGORIES = [
+  { id: 'all', label: 'Todos', icon: '🏷️' }
 ];
+
+const CATEGORY_ICONS = {
+  'Ropa': '👕',
+  'Zapatos': '👟',
+  'Bolsos': '👜',
+  'Accesorios': '⌚',
+  'Audio': '🎧',
+  'Hogar': '🏠',
+  'Belleza': '💄'
+};
 
 // ---- APP STATE ----
 const state = {
@@ -135,9 +141,20 @@ async function initData() {
           category: getV('Categoria') || 'Otros',
           stock: parseInt(getV('Stock Disponible').replace(/\D/g, '')) || 0,
           wholesalePrice: parseInt(getV('Precio Mayorista').replace(/\D/g, '')) || 0,
-          retailPrice: parseInt(getV('Precio Usuario Final').replace(/\D/g, '')) || 0
         };
       });
+
+    // Generar categorías dinámicas
+    const uniqueCats = [...new Set(PRODUCTS.map(p => p.category))].filter(c => c && c !== 'Otros');
+    CATEGORIES = [
+      { id: 'all', label: 'Todos', icon: '🏷️' },
+      ...uniqueCats.map(cat => ({
+        id: cat,
+        label: cat,
+        icon: CATEGORY_ICONS[cat] || '📦'
+      })),
+      { id: 'Otros', label: 'Otros', icon: '✨' }
+    ];
   }
 
   const sheetClients = await fetchSheetData(CONFIG.gids.clientes);
@@ -308,16 +325,20 @@ function renderHeader() {
 function getFilteredProducts() {
   let products = [...PRODUCTS];
 
+  const normalize = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
   if (state.selectedCategory !== 'all') {
-    products = products.filter(p => p.category === state.selectedCategory);
+    const selCat = normalize(state.selectedCategory);
+    products = products.filter(p => normalize(p.category) === selCat);
   }
 
   if (state.searchQuery) {
-    const q = state.searchQuery.toLowerCase();
+    const q = normalize(state.searchQuery);
     products = products.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.reference.toLowerCase().includes(q) ||
-      p.description.toLowerCase().includes(q)
+      normalize(p.name).includes(q) ||
+      normalize(p.reference).includes(q) ||
+      normalize(p.description).includes(q) ||
+      normalize(p.category).includes(q)
     );
   }
 
