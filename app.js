@@ -1,0 +1,767 @@
+// ============================
+// CATÁLOGO DIGITAL DE PEDIDOS
+// ============================
+
+// ---- CONFIGURATION ----
+const CONFIG = {
+  vendorPhone: '573158512091', // Número WhatsApp del vendedor (admin)
+  currency: 'COP',
+  appName: 'Catalogo de Productos',
+  sheetId: '1QMPMUbokrU0fHHL1EG2XTWfk6Cg5ITah_rttYDsMvyw',
+  gids: {
+    productos: '0',
+    clientes: '1788392842'
+  }
+};
+
+// ---- DEMO DATA ----
+let PRODUCTS = [];
+
+let DEMO_CLIENTS = [];
+
+const CATEGORIES = [
+  { id: 'all', label: 'Todos', icon: '🏷️' },
+  { id: 'Ropa', label: 'Ropa', icon: '👕' },
+  { id: 'Zapatos', label: 'Zapatos', icon: '👟' },
+  { id: 'Bolsos', label: 'Bolsos', icon: '👜' },
+  { id: 'Accesorios', label: 'Accesorios', icon: '⌚' }
+];
+
+// ---- APP STATE ----
+const state = {
+  currentUser: null,
+  currentScreen: 'login',
+  cart: [],
+  orders: JSON.parse(localStorage.getItem('orders') || '[]'),
+  selectedCategory: 'all',
+  searchQuery: '',
+  selectedProduct: null,
+  detailQty: 1,
+  currentDetailImageIndex: 0,
+  isLoading: false
+};
+
+// ---- UTILS & SYNC ----
+
+async function fetchSheetData(gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${gid}`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Network response was not ok');
+    const text = await response.text();
+    return parseCSV(text);
+  } catch (error) {
+    console.error('Error fetching sheet data:', error);
+    return null;
+  }
+}
+
+function parseCSV(csv) {
+  const lines = csv.split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).filter(line => line.trim()).map(line => {
+    // Basic CSV parser handle commas inside quotes if needed later, but simple for now
+    const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    const obj = {};
+    headers.forEach((header, i) => {
+      obj[header] = values[i];
+    });
+    return obj;
+  });
+}
+
+async function initData() {
+  state.isLoading = true;
+  document.body.classList.add('loading');
+
+  const sheetProducts = await fetchSheetData(CONFIG.gids.productos);
+  if (sheetProducts && sheetProducts.length > 0) {
+    PRODUCTS = sheetProducts.map(p => ({
+      id: p['ID Producto'],
+      photo: p['Foto'] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80',
+      photos: [
+        p['Foto'],
+        p['Foto2'],
+        p['Foto3'],
+        p['Foto4']
+      ].filter(f => f && f.trim() !== ''),
+      reference: p['Referencia'],
+      name: p['Nombre'],
+      description: p['Descripcion'],
+      category: p['Categoria'],
+      stock: parseInt(p['Stock Disponible']) || 0,
+      wholesalePrice: parseInt(p['Precio Mayorista']) || 0,
+      retailPrice: parseInt(p['Precio Usuario Final']) || 0
+    }));
+  }
+
+  const sheetClients = await fetchSheetData(CONFIG.gids.clientes);
+  if (sheetClients && sheetClients.length > 0) {
+    DEMO_CLIENTS = sheetClients.map(c => ({
+      id: c['Identificacion'],
+      pin: c['PIN'],
+      name: c['Nombre'],
+      type: c['Tipo Cliente'],
+      phone: c['Telefono WhatsApp']
+    }));
+  }
+
+  state.isLoading = false;
+  document.body.classList.remove('loading');
+
+  // Update UI if already on a screen that needs data
+  if (state.currentScreen === 'home') renderCatalog();
+  renderHeader(); // In case name changed
+}
+
+// Ensure initData runs
+window.addEventListener('DOMContentLoaded', initData);
+
+// ---- HELPERS ----
+function formatCurrency(amount) {
+  return '$' + amount.toLocaleString('es-CO');
+}
+
+function generateOrderId() {
+  const count = state.orders.length + 1;
+  return 'PED-' + String(count).padStart(4, '0');
+}
+
+function formatDate(date) {
+  return new Date(date).toLocaleDateString('es-CO', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function getProductPrice(product) {
+  if (!state.currentUser) return product.retailPrice;
+  return state.currentUser.type === 'Mayorista' ? product.wholesalePrice : product.retailPrice;
+}
+
+function saveOrders() {
+  localStorage.setItem('orders', JSON.stringify(state.orders));
+}
+
+function showToast(message, type = 'success') {
+  const toast = document.getElementById('toast');
+  toast.className = 'toast ' + type;
+  toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️'}</span> ${message}`;
+  setTimeout(() => toast.classList.add('show'), 10);
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function getCartCount() {
+  return state.cart.reduce((sum, item) => sum + item.qty, 0);
+}
+
+function getCartTotal() {
+  return state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+}
+
+// ---- NAVIGATION ----
+function navigateTo(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById('screen-' + screenId);
+  if (target) {
+    target.classList.add('active');
+  }
+
+  state.currentScreen = screenId;
+
+  // Update nav
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navItem = document.querySelector(`.nav-item[data-screen="${screenId}"]`);
+  if (navItem) navItem.classList.add('active');
+
+  // Show/hide nav bar
+  const nav = document.getElementById('bottom-nav');
+  if (screenId === 'login' || screenId === 'detail' || screenId === 'confirm') {
+    nav.style.display = 'none';
+  } else {
+    nav.style.display = 'flex';
+  }
+
+  // Hide cart footer on non-cart screens
+  const cartFooter = document.getElementById('cart-footer');
+  if (cartFooter) {
+    cartFooter.style.display = screenId === 'cart' && state.cart.length > 0 ? 'block' : 'none';
+  }
+
+  // Render content for the screen
+  if (screenId === 'home') renderCatalog();
+  if (screenId === 'cart') renderCart();
+  if (screenId === 'orders') renderOrders();
+  if (screenId === 'detail') renderDetail();
+  if (screenId === 'confirm') renderConfirmation();
+
+  // Scroll to top
+  window.scrollTo(0, 0);
+}
+
+// ---- AUTH ----
+function handleLogin(e) {
+  e.preventDefault();
+  const clientId = document.getElementById('login-id').value.trim();
+  const pin = document.getElementById('login-pin').value.trim();
+  const errorEl = document.getElementById('login-error');
+
+  const client = DEMO_CLIENTS.find(c => c.id === clientId && c.pin === pin);
+
+  if (client) {
+    state.currentUser = client;
+    errorEl.classList.remove('show');
+    navigateTo('home');
+    renderHeader();
+    updateCartBadge();
+  } else {
+    errorEl.classList.add('show');
+    errorEl.textContent = '❌ Credenciales incorrectas. Verifica tu ID y PIN.';
+    document.getElementById('login-pin').value = '';
+  }
+}
+
+function logout() {
+  state.currentUser = null;
+  state.cart = [];
+  state.searchQuery = '';
+  state.selectedCategory = 'all';
+  document.getElementById('login-id').value = '';
+  document.getElementById('login-pin').value = '';
+  navigateTo('login');
+}
+
+// ---- HEADER ----
+function renderHeader() {
+  if (!state.currentUser) return;
+  const el = document.getElementById('header-user-name');
+  const avatar = document.getElementById('header-avatar');
+  const type = document.getElementById('header-user-type');
+  if (el) el.textContent = state.currentUser.name;
+  if (avatar) avatar.textContent = state.currentUser.name.charAt(0).toUpperCase();
+  if (type) type.textContent = state.currentUser.type === 'Mayorista' ? '💎 Mayorista' : '👤 Usuario Final';
+}
+
+// ---- CATALOG ----
+function getFilteredProducts() {
+  let products = [...PRODUCTS];
+
+  if (state.selectedCategory !== 'all') {
+    products = products.filter(p => p.category === state.selectedCategory);
+  }
+
+  if (state.searchQuery) {
+    const q = state.searchQuery.toLowerCase();
+    products = products.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.reference.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q)
+    );
+  }
+
+  return products;
+}
+
+function renderCatalog() {
+  renderCategories();
+  renderProducts();
+}
+
+function renderCategories() {
+  const container = document.getElementById('categories-list');
+  if (!container) return;
+
+  container.innerHTML = CATEGORIES.map(cat => `
+    <div class="category-chip ${state.selectedCategory === cat.id ? 'active' : ''}" onclick="selectCategory('${cat.id}')">
+      <div class="cat-icon"><span>${cat.icon}</span></div>
+      <span class="cat-label">${cat.label}</span>
+    </div>
+  `).join('');
+}
+
+function selectCategory(catId) {
+  state.selectedCategory = catId;
+  renderCatalog();
+}
+
+function handleSearch(e) {
+  state.searchQuery = e.target.value;
+  renderProducts();
+}
+
+function renderProducts() {
+  const container = document.getElementById('products-grid');
+  if (!container) return;
+
+  const products = getFilteredProducts();
+
+  if (products.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 40px 0;">
+        <div style="font-size: 48px; margin-bottom: 12px;">🔍</div>
+        <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">No se encontraron productos</h3>
+        <p style="font-size: 13px; color: var(--text-secondary);">Intenta con otra búsqueda o categoría</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = products.map(product => {
+    const price = getProductPrice(product);
+    const inStock = product.stock > 0;
+
+    return `
+      <div class="product-card" onclick="openProduct('${product.id}')">
+        <div class="product-card-image">
+          <img src="${product.photo}" alt="${product.name}" loading="lazy">
+          <span class="stock-badge ${inStock ? 'in-stock' : 'out-of-stock'}">
+            ${inStock ? `✓ ${product.stock} disp.` : '✗ Agotado'}
+          </span>
+          <button class="fav-btn" onclick="event.stopPropagation()">♡</button>
+        </div>
+        <div class="product-card-info">
+          <div class="product-name">${product.name}</div>
+          <div class="product-ref">${product.reference}</div>
+          <div class="product-price">${formatCurrency(price)}</div>
+        </div>
+        ${inStock ? `<button class="add-cart-btn" onclick="event.stopPropagation(); quickAddToCart('${product.id}')" title="Agregar al carrito">+</button>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// ---- PRODUCT DETAIL ----
+function openProduct(productId) {
+  state.selectedProduct = PRODUCTS.find(p => p.id === productId);
+  state.detailQty = 1;
+  state.currentDetailImageIndex = 0;
+  navigateTo('detail');
+}
+
+function renderDetail() {
+  const product = state.selectedProduct;
+  if (!product) return;
+
+  const price = getProductPrice(product);
+  const inStock = product.stock > 0;
+
+  // Gallery logic
+  const photos = product.photos.length > 0 ? product.photos : [product.photo];
+  const currentPhoto = photos[state.currentDetailImageIndex] || photos[0];
+
+  const imgEl = document.getElementById('detail-image');
+  imgEl.style.opacity = '0';
+  setTimeout(() => {
+    imgEl.src = currentPhoto;
+    imgEl.alt = product.name;
+    imgEl.style.opacity = '1';
+  }, 50);
+
+  // Gallery Nav Visibility
+  document.getElementById('gallery-prev').disabled = photos.length <= 1;
+  document.getElementById('gallery-next').disabled = photos.length <= 1;
+
+  // Dots
+  const dotsContainer = document.getElementById('detail-dots');
+  if (photos.length > 1) {
+    dotsContainer.innerHTML = photos.map((_, i) => `
+      <div class="gallery-dot ${i === state.currentDetailImageIndex ? 'active' : ''}" onclick="setDetailImage(${i})"></div>
+    `).join('');
+    dotsContainer.style.display = 'flex';
+  } else {
+    dotsContainer.style.display = 'none';
+  }
+
+  document.getElementById('detail-category').textContent = product.category;
+  document.getElementById('detail-name').textContent = product.name;
+  document.getElementById('detail-ref').textContent = product.reference;
+  document.getElementById('detail-description').textContent = product.description;
+  document.getElementById('detail-price').textContent = formatCurrency(price);
+
+  const stockEl = document.getElementById('detail-stock');
+  stockEl.className = `detail-stock ${inStock ? 'in-stock' : 'out-of-stock'}`;
+  stockEl.innerHTML = inStock
+    ? `✓ ${product.stock} disponibles`
+    : '✗ Agotado';
+
+  document.getElementById('detail-qty-value').textContent = state.detailQty;
+
+  const addBtn = document.getElementById('detail-add-btn');
+  addBtn.disabled = !inStock;
+  addBtn.textContent = inStock ? `🛒 Agregar al carrito — ${formatCurrency(price * state.detailQty)}` : 'Producto agotado';
+}
+
+function changeDetailImage(delta) {
+  const product = state.selectedProduct;
+  if (!product) return;
+  const photos = product.photos.length > 0 ? product.photos : [product.photo];
+  let newIndex = state.currentDetailImageIndex + delta;
+
+  if (newIndex < 0) newIndex = photos.length - 1;
+  if (newIndex >= photos.length) newIndex = 0;
+
+  state.currentDetailImageIndex = newIndex;
+  renderDetail();
+}
+
+function setDetailImage(index) {
+  state.currentDetailImageIndex = index;
+  renderDetail();
+}
+
+function changeDetailQty(delta) {
+  const product = state.selectedProduct;
+  if (!product) return;
+  const newQty = state.detailQty + delta;
+  if (newQty < 1 || newQty > product.stock) return;
+  state.detailQty = newQty;
+  renderDetail();
+}
+
+function addToCartFromDetail() {
+  const product = state.selectedProduct;
+  if (!product || product.stock === 0) return;
+
+  const existing = state.cart.find(i => i.productId === product.id);
+  const currentQty = existing ? existing.qty : 0;
+
+  if (currentQty + state.detailQty > product.stock) {
+    showToast(`Stock máximo: ${product.stock} unidades`, 'warning');
+    return;
+  }
+
+  if (existing) {
+    existing.qty += state.detailQty;
+  } else {
+    state.cart.push({
+      productId: product.id,
+      name: product.name,
+      reference: product.reference,
+      photo: product.photo,
+      price: getProductPrice(product),
+      qty: state.detailQty,
+      maxStock: product.stock
+    });
+  }
+
+  updateCartBadge();
+  showToast(`${product.name} agregado al carrito`);
+  navigateTo('home');
+}
+
+function quickAddToCart(productId) {
+  const product = PRODUCTS.find(p => p.id === productId);
+  if (!product || product.stock === 0) return;
+
+  const existing = state.cart.find(i => i.productId === product.id);
+
+  if (existing) {
+    if (existing.qty >= product.stock) {
+      showToast('Stock máximo alcanzado', 'warning');
+      return;
+    }
+    existing.qty++;
+  } else {
+    state.cart.push({
+      productId: product.id,
+      name: product.name,
+      reference: product.reference,
+      photo: product.photo,
+      price: getProductPrice(product),
+      qty: 1,
+      maxStock: product.stock
+    });
+  }
+
+  updateCartBadge();
+  showToast(`${product.name} agregado al carrito`);
+}
+
+// ---- CART ----
+function updateCartBadge() {
+  const badge = document.getElementById('cart-badge');
+  if (!badge) return;
+  const count = getCartCount();
+  badge.textContent = count;
+  badge.className = 'cart-badge' + (count > 0 ? ' show' : '');
+}
+
+function renderCart() {
+  const container = document.getElementById('cart-items');
+  const footer = document.getElementById('cart-footer');
+  const emptyState = document.getElementById('cart-empty');
+
+  if (state.cart.length === 0) {
+    if (container) container.innerHTML = '';
+    if (emptyState) emptyState.style.display = 'block';
+    if (footer) footer.style.display = 'none';
+    return;
+  }
+
+  if (emptyState) emptyState.style.display = 'none';
+  if (footer) footer.style.display = 'block';
+
+  container.innerHTML = state.cart.map((item, index) => {
+    const overStock = item.qty > item.maxStock;
+    return `
+      <div class="cart-item" style="animation-delay: ${index * 0.05}s">
+        <div class="cart-item-image">
+          <img src="${item.photo}" alt="${item.name}">
+        </div>
+        <div class="cart-item-details">
+          <div class="item-name">${item.name}</div>
+          <div class="item-ref">${item.reference}</div>
+          <div class="item-price">${formatCurrency(item.price * item.qty)}</div>
+          ${overStock ? '<div class="cart-stock-warning">⚠️ Excede stock disponible</div>' : ''}
+        </div>
+        <div class="cart-item-actions">
+          <button class="delete-btn" onclick="removeFromCart('${item.productId}')" title="Eliminar">🗑️</button>
+          <div class="cart-item-qty">
+            <button onclick="changeCartQty('${item.productId}', -1)">−</button>
+            <span>${item.qty}</span>
+            <button onclick="changeCartQty('${item.productId}', 1)">+</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Update total
+  document.getElementById('cart-total').textContent = formatCurrency(getCartTotal());
+}
+
+function changeCartQty(productId, delta) {
+  const item = state.cart.find(i => i.productId === productId);
+  if (!item) return;
+
+  const newQty = item.qty + delta;
+  if (newQty < 1) {
+    removeFromCart(productId);
+    return;
+  }
+  if (newQty > item.maxStock) {
+    showToast(`Stock máximo: ${item.maxStock} unidades`, 'warning');
+    return;
+  }
+
+  item.qty = newQty;
+  renderCart();
+  updateCartBadge();
+}
+
+function removeFromCart(productId) {
+  state.cart = state.cart.filter(i => i.productId !== productId);
+  renderCart();
+  updateCartBadge();
+}
+
+function clearCart() {
+  if (state.cart.length === 0) return;
+  state.cart = [];
+  renderCart();
+  updateCartBadge();
+  showToast('Carrito vaciado');
+}
+
+// ---- ORDER CONFIRMATION ----
+function goToConfirmation() {
+  if (state.cart.length === 0) return;
+  navigateTo('confirm');
+}
+
+function renderConfirmation() {
+  const user = state.currentUser;
+  if (!user) return;
+
+  document.getElementById('confirm-client-name').textContent = user.name;
+  document.getElementById('confirm-client-id').textContent = user.id;
+  document.getElementById('confirm-client-type').textContent = user.type;
+  document.getElementById('confirm-date').textContent = formatDate(new Date());
+
+  const productsList = document.getElementById('confirm-products');
+  productsList.innerHTML = state.cart.map(item => `
+    <div class="confirm-product-item">
+      <div class="prod-info">
+        <div class="prod-name">${item.name}</div>
+        <div class="prod-qty">x${item.qty} · ${formatCurrency(item.price)} c/u</div>
+      </div>
+      <div class="prod-subtotal">${formatCurrency(item.price * item.qty)}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('confirm-total').textContent = formatCurrency(getCartTotal());
+}
+
+function cancelOrder() {
+  navigateTo('cart');
+}
+
+function sendOrder() {
+  const user = state.currentUser;
+  if (!user || state.cart.length === 0) return;
+
+  const orderId = generateOrderId();
+  const date = new Date().toISOString();
+  const total = getCartTotal();
+
+  // Save order
+  const order = {
+    id: orderId,
+    clientId: user.id,
+    clientName: user.name,
+    clientType: user.type,
+    clientPhone: user.phone,
+    date: date,
+    status: 'Pendiente',
+    total: total,
+    items: state.cart.map(item => ({
+      productId: item.productId,
+      name: item.name,
+      reference: item.reference,
+      qty: item.qty,
+      price: item.price,
+      subtotal: item.price * item.qty
+    }))
+  };
+
+  state.orders.push(order);
+  saveOrders();
+
+  // Generate WhatsApp message for the vendor
+  const vendorMessage = generateVendorMessage(order);
+  const waUrl = `https://wa.me/${CONFIG.vendorPhone}?text=${encodeURIComponent(vendorMessage)}`;
+
+  // Show success overlay
+  showSuccessOverlay(order, waUrl);
+
+  // Clear cart
+  state.cart = [];
+  updateCartBadge();
+}
+
+function generateVendorMessage(order) {
+  let msg = `📦 *PEDIDO # ${order.id}*\n`;
+  msg += `━━━━━━━━━━━━━━\n`;
+  msg += `👤 Cliente: ${order.clientName} (${order.clientId})\n`;
+  msg += `📅 Fecha: ${formatDate(order.date)}\n`;
+  msg += `📞 Tel: ${order.clientPhone}\n`;
+  msg += `💼 Tipo: ${order.clientType}\n\n`;
+  msg += `🛒 *DETALLES DEL PEDIDO:*\n`;
+
+  let totalQty = 0;
+  order.items.forEach(item => {
+    msg += `------------------------------\n`;
+    msg += `📌 Ref: ${item.reference}\n`;
+    msg += `📦 Prod: ${item.name}\n`;
+    msg += `🔢 Cant: ${item.qty}\n`;
+    msg += `💰 Precio: ${formatCurrency(item.price)}\n`;
+    msg += `💵 Subtotal: ${formatCurrency(item.subtotal)}\n`;
+    totalQty += item.qty;
+  });
+
+  msg += `━━━━━━━━━━━━━━\n`;
+  msg += `📦 *Total de productos:* ${totalQty}\n`;
+  msg += `💰 *TOTAL A PAGAR: ${formatCurrency(order.total)}*\n`;
+  msg += `📋 Estado: Pendiente\n`;
+  msg += `━━━━━━━━━━━━━━`;
+
+  return msg;
+}
+
+function generateClientMessage(order) {
+  let msg = `✅ *¡Su pedido #${order.id} fue recibido!*\n\n`;
+  msg += `Total: ${formatCurrency(order.total)}\n`;
+  msg += `Le contactaremos pronto.\n\n`;
+  msg += `Gracias por su compra. 🛍️`;
+  return msg;
+}
+
+function showSuccessOverlay(order, waUrl) {
+  const overlay = document.getElementById('success-overlay');
+  document.getElementById('success-order-id').textContent = order.id;
+  document.getElementById('success-total').textContent = formatCurrency(order.total);
+  document.getElementById('wa-vendor-link').href = waUrl;
+
+  // Client confirmation WhatsApp link
+  const clientMsg = generateClientMessage(order);
+  const clientWaUrl = `https://wa.me/${order.clientPhone.replace('+', '')}?text=${encodeURIComponent(clientMsg)}`;
+  document.getElementById('wa-client-link').href = clientWaUrl;
+
+  overlay.classList.add('show');
+}
+
+function closeSuccessOverlay() {
+  document.getElementById('success-overlay').classList.remove('show');
+  navigateTo('home');
+}
+
+// ---- ORDER HISTORY ----
+function renderOrders() {
+  const container = document.getElementById('orders-list');
+  const emptyState = document.getElementById('orders-empty');
+
+  const userOrders = state.orders.filter(o => o.clientId === state.currentUser?.id).reverse();
+
+  if (userOrders.length === 0) {
+    if (container) container.innerHTML = '';
+    if (emptyState) emptyState.style.display = 'block';
+    return;
+  }
+
+  if (emptyState) emptyState.style.display = 'none';
+
+  container.innerHTML = userOrders.map(order => {
+    const statusClass = order.status === 'Pendiente' ? 'pending' : order.status === 'Enviado' ? 'sent' : 'cancelled';
+    const statusLabel = order.status === 'Pendiente' ? '⏳ Pendiente' : order.status === 'Enviado' ? '✅ Enviado' : '❌ Cancelado';
+
+    return `
+      <div class="order-card" onclick="toggleOrderDetails(this)">
+        <div class="order-card-header">
+          <span class="order-id">${order.id}</span>
+          <span class="order-status ${statusClass}">${statusLabel}</span>
+        </div>
+        <div class="order-card-body">
+          <span class="order-date">${formatDate(order.date)}</span>
+          <span class="order-total">${formatCurrency(order.total)}</span>
+        </div>
+        <div class="order-details-list">
+          ${order.items.map(item => `
+            <div class="order-detail-item">
+              <span>${item.name} x${item.qty}</span>
+              <span>${formatCurrency(item.subtotal)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleOrderDetails(card) {
+  card.classList.toggle('expanded');
+}
+
+// ---- INITIALIZATION ----
+document.addEventListener('DOMContentLoaded', () => {
+  // Login form
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) loginForm.addEventListener('submit', handleLogin);
+
+  // Search
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) searchInput.addEventListener('input', handleSearch);
+
+  // Navigation
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const screen = item.dataset.screen;
+      if (screen) navigateTo(screen);
+    });
+  });
+
+  // Start on login
+  navigateTo('login');
+});

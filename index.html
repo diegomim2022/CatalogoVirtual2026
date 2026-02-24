@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description"
+    content="Catálogo Digital de Pedidos — Visualiza productos, genera pedidos y envía por WhatsApp">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Catalogo de Productos — Catálogo Digital de Pedidos</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛍️</text></svg>">
+</head>
+
+<body>
+
+  <div class="app-container">
+
+    <!-- ==================== LOGIN SCREEN ==================== -->
+    <div id="screen-login" class="screen no-nav active">
+      <div class="login-screen">
+        <div class="login-card">
+          <div class="login-logo">
+            <img src="LogoMas.png" alt="Logo" class="logo-img">
+            <h1>Catalogo de Productos</h1>
+            <p>Catálogo Digital de Pedidos</p>
+          </div>
+
+          <form id="login-form">
+            <div id="login-error" class="login-error"></div>
+
+            <div class="form-group">
+              <label for="login-id">Identificación</label>
+              <input type="text" id="login-id" placeholder="Ingresa tu ID de cliente" required autocomplete="off">
+            </div>
+
+            <div class="form-group">
+              <label for="login-pin">PIN</label>
+              <input type="password" id="login-pin" placeholder="PIN de 4 dígitos" maxlength="4" required
+                autocomplete="off" inputmode="numeric">
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+              Iniciar Sesión
+            </button>
+          </form>
+
+          <div class="login-instructions"
+            style="margin-top: 20px; padding: 14px; background: rgba(26, 26, 46, 0.05); border-radius: 8px; font-size: 13px; color: var(--text-secondary); text-align: center; line-height: 1.6;">
+            <strong>Instrucciones de Acceso:</strong><br>
+            Ingresa tu número de identificación y PIN asignado para visualizar los productos y realizar pedidos.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== HOME / CATALOG SCREEN ==================== -->
+    <div id="screen-home" class="screen">
+
+      <!-- Header -->
+      <div class="app-header">
+        <div class="header-user">
+          <div class="header-avatar" id="header-avatar">C</div>
+          <div class="header-info">
+            <h2 id="header-user-name">Usuario</h2>
+            <p id="header-user-type">Cliente</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn" onclick="document.getElementById('search-input').focus()"
+            title="Buscar">🔍</button>
+          <button class="header-btn" onclick="logout()" title="Cerrar sesión">🚪</button>
+        </div>
+      </div>
+
+      <!-- Search bar -->
+      <div class="search-container">
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Buscar productos, referencias...">
+        </div>
+      </div>
+
+      <!-- Promo banner -->
+      <div class="promo-section">
+        <div class="promo-banner">
+          <div class="promo-content">
+            <span class="promo-tag">Oferta</span>
+            <h3>Nuevo Catálogo</h3>
+            <p>Descubre los mejores productos con precios exclusivos</p>
+          </div>
+          <div style="font-size: 64px;">🛒</div>
+        </div>
+        <div class="promo-dots">
+          <div class="promo-dot active"></div>
+          <div class="promo-dot"></div>
+          <div class="promo-dot"></div>
+        </div>
+      </div>
+
+      <!-- Categories -->
+      <div class="categories-section">
+        <div class="categories-scroll" id="categories-list"></div>
+      </div>
+
+      <!-- Products -->
+      <div class="products-section">
+        <div class="section-header">
+          <h3>Productos</h3>
+        </div>
+        <div class="products-grid" id="products-grid"></div>
+      </div>
+
+    </div>
+
+    <!-- ==================== PRODUCT DETAIL SCREEN ==================== -->
+    <div id="screen-detail" class="screen no-nav">
+      <div class="detail-screen">
+        <button class="detail-back" onclick="navigateTo('home')">←</button>
+
+        <div class="detail-image-container">
+          <div class="gallery-wrapper">
+            <img id="detail-image" src="" alt="Producto">
+          </div>
+          <button class="gallery-nav prev" id="gallery-prev" onclick="changeDetailImage(-1)">‹</button>
+          <button class="gallery-nav next" id="gallery-next" onclick="changeDetailImage(1)">›</button>
+          <div class="gallery-dots" id="detail-dots"></div>
+        </div>
+
+        <div class="detail-body">
+          <div class="detail-category" id="detail-category"></div>
+          <h1 class="detail-name" id="detail-name"></h1>
+          <p class="detail-ref" id="detail-ref"></p>
+          <p class="detail-description" id="detail-description"></p>
+
+          <div class="detail-price-row">
+            <span class="detail-price" id="detail-price"></span>
+          </div>
+
+          <div class="detail-stock" id="detail-stock"></div>
+
+          <div class="detail-quantity">
+            <label>Cantidad:</label>
+            <div class="qty-controls">
+              <button class="qty-btn" onclick="changeDetailQty(-1)">−</button>
+              <span class="qty-value" id="detail-qty-value">1</span>
+              <button class="qty-btn" onclick="changeDetailQty(1)">+</button>
+            </div>
+          </div>
+
+          <button class="detail-add-btn" id="detail-add-btn" onclick="addToCartFromDetail()">
+            🛒 Agregar al carrito
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== CART SCREEN ==================== -->
+    <div id="screen-cart" class="screen">
+      <div class="cart-header">
+        <h2>🛒 Mi Carrito</h2>
+        <button class="cart-clear-btn" onclick="clearCart()">Vaciar todo</button>
+      </div>
+
+      <div class="cart-screen-inner">
+        <div id="cart-empty" class="cart-empty" style="display: none;">
+          <div class="empty-icon">🛒</div>
+          <h3>Tu carrito está vacío</h3>
+          <p>Agrega productos desde el catálogo</p>
+          <button class="btn btn-primary" style="max-width: 200px; margin: 0 auto;" onclick="navigateTo('home')">
+            Ver catálogo
+          </button>
+        </div>
+
+        <div id="cart-items"></div>
+      </div>
+
+      <div id="cart-footer" class="cart-footer" style="display: none;">
+        <div class="cart-total-row">
+          <span class="total-label">Total del pedido</span>
+          <span class="total-amount" id="cart-total">$0</span>
+        </div>
+        <button class="cart-confirm-btn" onclick="goToConfirmation()">
+          Confirmar Pedido →
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== ORDER CONFIRMATION SCREEN ==================== -->
+    <div id="screen-confirm" class="screen no-nav">
+      <div class="cart-header">
+        <h2>📋 Confirmar Pedido</h2>
+        <button class="cart-clear-btn" onclick="cancelOrder()">← Volver</button>
+      </div>
+
+      <div class="confirm-screen-inner">
+        <div class="confirm-card">
+          <div class="confirm-header">
+            <div class="confirm-icon">📋</div>
+            <h2>Resumen del Pedido</h2>
+            <p>Verifica la información antes de enviar</p>
+          </div>
+
+          <div class="confirm-section">
+            <h4>Información del Cliente</h4>
+            <div class="confirm-info-row">
+              <span class="label">Nombre</span>
+              <span class="value" id="confirm-client-name"></span>
+            </div>
+            <div class="confirm-info-row">
+              <span class="label">ID</span>
+              <span class="value" id="confirm-client-id"></span>
+            </div>
+            <div class="confirm-info-row">
+              <span class="label">Tipo</span>
+              <span class="value" id="confirm-client-type"></span>
+            </div>
+            <div class="confirm-info-row">
+              <span class="label">Fecha</span>
+              <span class="value" id="confirm-date"></span>
+            </div>
+          </div>
+
+          <div class="confirm-divider"></div>
+
+          <div class="confirm-section">
+            <h4>Productos</h4>
+            <div id="confirm-products"></div>
+          </div>
+
+          <div class="confirm-divider"></div>
+
+          <div class="confirm-total">
+            <span>TOTAL</span>
+            <span class="total-amount" id="confirm-total"></span>
+          </div>
+
+          <div class="confirm-actions">
+            <button class="btn btn-success" onclick="sendOrder()">
+              ✅ Enviar Pedido por WhatsApp
+            </button>
+            <button class="btn btn-danger" onclick="cancelOrder()">
+              ❌ Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== ORDERS HISTORY SCREEN ==================== -->
+    <div id="screen-orders" class="screen">
+      <div class="orders-header">
+        <h2>📦 Mis Pedidos</h2>
+      </div>
+
+      <div class="orders-screen-inner">
+        <div id="orders-empty" class="orders-empty" style="display: none;">
+          <div class="empty-icon">📦</div>
+          <h3>Sin pedidos aún</h3>
+          <p>Tus pedidos aparecerán aquí</p>
+        </div>
+
+        <div id="orders-list"></div>
+      </div>
+    </div>
+
+    <!-- ==================== BOTTOM NAVIGATION ==================== -->
+    <nav class="bottom-nav" id="bottom-nav" style="display: none;">
+      <button class="nav-item active" data-screen="home">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Home</span>
+      </button>
+      <button class="nav-item" data-screen="home" onclick="state.selectedCategory='all'; navigateTo('home');">
+        <span class="nav-icon">📦</span>
+        <span class="nav-label">Categorías</span>
+      </button>
+      <button class="nav-item" data-screen="cart">
+        <span class="nav-icon">🛒</span>
+        <span class="nav-label">Carrito</span>
+        <span class="cart-badge" id="cart-badge">0</span>
+      </button>
+      <button class="nav-item" data-screen="orders">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Pedidos</span>
+      </button>
+    </nav>
+
+    <!-- ==================== SUCCESS OVERLAY ==================== -->
+    <div id="success-overlay" class="success-overlay">
+      <div class="success-card">
+        <div class="success-check">✓</div>
+        <h2>¡Pedido Registrado!</h2>
+        <p>
+          Tu pedido <strong id="success-order-id"></strong> fue registrado exitosamente.<br>
+          Total: <strong id="success-total"></strong>
+        </p>
+        <a id="wa-vendor-link" href="#" target="_blank" class="btn btn-success"
+          style="width: 100%; text-decoration: none; margin-bottom: 8px;">
+          📲 Enviar al Vendedor (WhatsApp)
+        </a>
+        <a id="wa-client-link" href="#" target="_blank" class="btn btn-outline"
+          style="width: 100%; text-decoration: none; margin-bottom: 8px;">
+          📩 Confirmación al Cliente
+        </a>
+        <button class="btn btn-secondary" onclick="closeSuccessOverlay()" style="width: 100%;">
+          Volver al Catálogo
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== TOAST ==================== -->
+    <div id="toast" class="toast success"></div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
