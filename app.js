@@ -56,6 +56,21 @@ async function fetchSheetData(gid) {
   }
 }
 
+function transformDriveUrl(url) {
+  if (!url || !url.includes('drive.google.com')) return url;
+
+  // Extraer ID del archivo de diferentes formatos de Drive
+  const regex = /\/d\/([^\/]+)(\/|$)|id=([^\&]+)/;
+  const match = url.match(regex);
+  const id = match ? (match[1] || match[3]) : null;
+
+  if (id) {
+    // Retornar link de visualización directa optimizado (lh3 es más rápido y estable)
+    return `https://lh3.googleusercontent.com/d/${id}`;
+  }
+  return url;
+}
+
 function parseCSV(csv) {
   if (!csv) return [];
   const rows = [];
@@ -110,8 +125,10 @@ async function initData() {
 
         return {
           id: getV('ID Producto'),
-          photo: getV('Foto') || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
-          photos: [getV('Foto'), getV('Foto2'), getV('Foto3'), getV('Foto4')].filter(f => f && f.trim() !== ''),
+          photo: transformDriveUrl(getV('Foto')) || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
+          photos: [
+            getV('Foto'), getV('Foto2'), getV('Foto3'), getV('Foto4')
+          ].map(url => transformDriveUrl(url)).filter(f => f && f.trim() !== ''),
           reference: getV('Referencia') || '',
           name: getV('Nombre') || 'Sin nombre',
           description: getV('Descripcion') || '',
