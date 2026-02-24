@@ -132,15 +132,14 @@ async function initData() {
         return {
           id: getV('ID Producto'),
           photo: transformDriveUrl(getV('Foto')) || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
-          photos: [
-            getV('Foto'), getV('Foto2'), getV('Foto3'), getV('Foto4')
-          ].map(url => transformDriveUrl(url)).filter(f => f && f.trim() !== ''),
+          photos: [getV('Foto'), getV('Foto2'), getV('Foto3'), getV('Foto4')].map(url => transformDriveUrl(url)).filter(f => f && f.trim() !== ''),
           reference: getV('Referencia') || '',
           name: getV('Nombre') || 'Sin nombre',
           description: getV('Descripcion') || '',
           category: getV('Categoria') || 'Otros',
-          stock: parseInt(getV('Stock Disponible').replace(/\D/g, '')) || 0,
-          wholesalePrice: parseInt(getV('Precio Mayorista').replace(/\D/g, '')) || 0,
+          stock: parseInt(getV('Stock Disponible').toString().replace(/\D/g, '')) || 0,
+          wholesalePrice: parseInt(getV('Precio Mayorista').toString().replace(/\D/g, '')) || 0,
+          retailPrice: parseInt(getV('Precio Usuario Final').toString().replace(/\D/g, '')) || 0
         };
       });
 
@@ -171,9 +170,8 @@ async function initData() {
   state.isLoading = false;
   document.body.classList.remove('loading');
 
-  // Update UI if already on a screen that needs data
-  if (state.currentScreen === 'home') renderCatalog();
-  renderHeader(); // In case name changed
+  navigateTo('login');
+  renderHeader();
 }
 
 // Ensure initData runs
@@ -325,9 +323,9 @@ function renderHeader() {
 function getFilteredProducts() {
   let products = [...PRODUCTS];
 
-  const normalize = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const normalize = (s) => (s || "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-  if (state.selectedCategory !== 'all') {
+  if (state.selectedCategory && state.selectedCategory !== 'all') {
     const selCat = normalize(state.selectedCategory);
     products = products.filter(p => normalize(p.category) === selCat);
   }
@@ -337,8 +335,7 @@ function getFilteredProducts() {
     products = products.filter(p =>
       normalize(p.name).includes(q) ||
       normalize(p.reference).includes(q) ||
-      normalize(p.description).includes(q) ||
-      normalize(p.category).includes(q)
+      normalize(p.description).includes(q)
     );
   }
 
