@@ -514,11 +514,47 @@ function renderDetail() {
 
   // Add scroll listener for dots
   wrapper.onscroll = () => {
-    const index = Math.round(wrapper.scrollLeft / wrapper.clientWidth);
+    const index = Math.round(wrapper.scrollLeft / (wrapper.clientWidth || 1));
     if (state.currentDetailImageIndex !== index) {
       state.currentDetailImageIndex = index;
       updateDetailDots(photos.length);
     }
+  };
+
+  // Enable mouse drag-to-scroll
+  let isDown = false;
+  let startX;
+  let scrollLeft;
+
+  wrapper.onmousedown = (e) => {
+    isDown = true;
+    wrapper.style.cursor = 'grabbing';
+    wrapper.style.scrollSnapType = 'none'; // Disable snapping while dragging
+    startX = e.pageX - wrapper.offsetLeft;
+    scrollLeft = wrapper.scrollLeft;
+  };
+
+  wrapper.onmouseleave = () => {
+    isDown = false;
+    wrapper.style.cursor = 'grab';
+    wrapper.style.scrollSnapType = 'x mandatory';
+  };
+
+  wrapper.onmouseup = () => {
+    isDown = false;
+    wrapper.style.cursor = 'grab';
+    wrapper.style.scrollSnapType = 'x mandatory';
+    // Snap to nearest image on release
+    const index = Math.round(wrapper.scrollLeft / (wrapper.clientWidth || 1));
+    setDetailImage(index);
+  };
+
+  wrapper.onmousemove = (e) => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - wrapper.offsetLeft;
+    const walk = (x - startX) * 2; // Scroll speed multiplier
+    wrapper.scrollLeft = scrollLeft - walk;
   };
 
   updateDetailDots(photos.length);
