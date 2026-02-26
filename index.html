@@ -86,19 +86,10 @@
 
       <!-- Promo banner -->
       <div class="promo-section">
-        <div class="promo-banner">
-          <div class="promo-content">
-            <span class="promo-tag">Oferta</span>
-            <h3>Nuevo Catálogo</h3>
-            <p>Descubre los mejores productos con precios exclusivos</p>
-          </div>
-          <div style="font-size: 64px;">🛒</div>
+        <div class="promo-banner" id="promo-banner-content">
+          <!-- Se renderiza dinámicamente -->
         </div>
-        <div class="promo-dots">
-          <div class="promo-dot active"></div>
-          <div class="promo-dot"></div>
-          <div class="promo-dot"></div>
-        </div>
+        <div class="promo-dots" id="promo-dots"></div>
       </div>
 
       <!-- Categories -->
@@ -122,11 +113,9 @@
         <button class="detail-back" onclick="navigateTo('home')">←</button>
 
         <div class="detail-image-container">
-          <div class="gallery-wrapper">
-            <img id="detail-image" src="" alt="Producto">
+          <div class="gallery-wrapper" id="gallery-wrapper">
+            <!-- Las imágenes se renderizarán dinámicamente aquí -->
           </div>
-          <button class="gallery-nav prev" id="gallery-prev" onclick="changeDetailImage(-1)">‹</button>
-          <button class="gallery-nav next" id="gallery-next" onclick="changeDetailImage(1)">›</button>
           <div class="gallery-dots" id="detail-dots"></div>
         </div>
 
