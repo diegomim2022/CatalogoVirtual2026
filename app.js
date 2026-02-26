@@ -23,15 +23,40 @@ let CATEGORIES = [
   { id: 'all', label: 'Todos', icon: '🏷️' }
 ];
 
-const CATEGORY_ICONS = {
-  'Ropa': '👕',
-  'Zapatos': '👟',
-  'Bolsos': '👜',
-  'Accesorios': '⌚',
-  'Audio': '🎧',
-  'Hogar': '🏠',
-  'Belleza': '💄'
+const CATEGORY_ICONS_MAP = {
+  'ropa': '👕', 'vestidor': '👗', 'camisa': '👔', 'pantalon': '👖',
+  'zapato': '👟', 'calzado': '👞', 'tenis': '👟',
+  'bolso': '👜', 'maleta': '💼', 'morral': '🎒',
+  'reloj': '⌚', 'joya': '💍', 'accesorio': '👓',
+  'audio': '🎧', 'sonido': '🔊', 'parlante': '📻', 'audifono': '🎧',
+  'hogar': '🏠', 'casa': '🏡', 'cocina': '🍳', 'mueble': '🛋️',
+  'belleza': '💄', 'maquillaje': '💅', 'perfume': '✨', 'cuidado': '🧴',
+  'tecnologia': '💻', 'celular': '📱', 'computador': '💻', 'electronica': '🔌',
+  'deporte': '⚽', 'gym': '🏋️', 'entrenamiento': '🚴',
+  'juguete': '🧸', 'niño': '👶', 'bebe': '🍼',
+  'mascota': '🐶', 'perro': '🐱', 'alimento': '🦴',
+  'herramienta': '🛠️', 'construccion': '🏗️', 'ferreteria': '🔨',
+  'papeleria': '📝', 'oficina': '📎', 'util': '📏',
+  'salud': '💊', 'medicina': '🩺', 'bienestar': '🧘',
+  'comida': '🍔', 'bebida': '🥤', 'snack': '🍿',
+  'carro': '🚗', 'moto': '🏍️', 'vehiculo': '🚜',
+  'cable': '🔌', 'power': '⚡', 'energia': '🔋'
 };
+
+function getAutoIcon(categoryName) {
+  if (!categoryName) return '📦';
+  const name = categoryName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // Buscar coincidencia exacta primero
+  if (CATEGORY_ICONS_MAP[name]) return CATEGORY_ICONS_MAP[name];
+
+  // Buscar por palabra clave parcial
+  for (const [key, icon] of Object.entries(CATEGORY_ICONS_MAP)) {
+    if (name.includes(key)) return icon;
+  }
+
+  return '📦'; // Default
+}
 
 // ---- APP STATE ----
 const state = {
@@ -160,7 +185,7 @@ async function initData() {
       ...uniqueCats.map(cat => ({
         id: cat,
         label: cat,
-        icon: CATEGORY_ICONS[cat] || '📦'
+        icon: getAutoIcon(cat)
       })),
       { id: 'Otros', label: 'Otros', icon: '✨' }
     ];
