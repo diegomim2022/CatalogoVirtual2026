@@ -509,7 +509,7 @@ function renderDetail() {
   const wrapper = document.getElementById('gallery-wrapper');
 
   wrapper.innerHTML = photos.map(photo => `
-    <img src="${photo}" alt="${product.name}" loading="lazy">
+    <img src="${photo}" alt="${product.name}" loading="lazy" draggable="false">
   `).join('');
 
   // Add scroll listener for dots
@@ -553,7 +553,7 @@ function renderDetail() {
     if (!isDown) return;
     e.preventDefault();
     const x = e.pageX - wrapper.offsetLeft;
-    const walk = (x - startX) * 2; // Scroll speed multiplier
+    const walk = (x - startX) * 1.5; // Adjusted multiplier
     wrapper.scrollLeft = scrollLeft - walk;
   };
 
