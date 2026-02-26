@@ -975,16 +975,15 @@ body {
     width: 100%;
     height: 100%;
     display: flex;
-    overflow-x: scroll;
-    /* Usar 'scroll' para asegurar el scroll táctil nativo */
+    overflow-x: auto;
+    /* Volver a 'auto' que es más compatible */
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    touch-action: pan-y;
-    /* Permite scroll vertical pero previene el swipe horizontal del navegador */
     cursor: grab;
     user-select: none;
+    /* Eliminamos touch-action: pan-y porque bloquea el scroll horizontal nativo en iPhone */
 }
 
 .gallery-wrapper::-webkit-scrollbar {
@@ -998,6 +997,8 @@ body {
     object-fit: contain;
     scroll-snap-align: center;
     padding: 20px;
+    pointer-events: none;
+    /* Evita que la imagen interfiera con el arrastre del contenedor */
 }
 
 .gallery-nav {
@@ -1865,5 +1866,4 @@ body {
 
 .success-card .btn {
     width: 100%;
-    margin-bottom: 8px;
-}
+ 
