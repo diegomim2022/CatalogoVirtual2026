@@ -401,16 +401,21 @@ function renderPromoBanner() {
   container.style.opacity = '0';
   setTimeout(() => {
     container.innerHTML = `
-      <div class="promo-content" onclick="openProduct('${product.id}')" style="cursor: pointer;">
-        <span class="promo-tag">🔥 Oferta Especial</span>
-        <h3>${product.name}</h3>
-        <p>${product.reference} — <strong>${formatCurrency(price)}</strong></p>
+      <div class="promo-content" onclick="openProduct('${product.id}')" style="cursor: pointer; flex: 1; padding-right: 15px; min-width: 0;">
+        <span class="promo-tag" style="background: #e94560 !important; color: white !important;">🔥 Oferta Especial</span>
+        <h3 style="font-size: 18px; margin: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${product.name}</h3>
+        <p style="font-size: 13px; margin: 0; color: #6b7280;">${product.reference} — <strong style="color: #e94560;">${formatCurrency(price)}</strong></p>
       </div>
-      <div class="promo-image-container" onclick="openProduct('${product.id}')" style="cursor: pointer;">
-        <img src="${product.photo}" alt="${product.name}" class="promo-banner-img">
+      <div class="promo-image-container" onclick="openProduct('${product.id}')" style="cursor: pointer; width: 90px; height: 90px; flex-shrink: 0; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #eee;">
+        <img src="${product.photo}" alt="${product.name}" style="max-width: 100%; max-height: 100%; object-fit: contain; display: block;">
       </div>
     `;
     container.style.opacity = '1';
+    container.style.height = '140px';
+    container.style.maxHeight = '140px';
+    container.style.overflow = 'hidden';
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
   }, 300);
 
   if (dotsContainer) {
