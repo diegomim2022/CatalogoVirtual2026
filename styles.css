@@ -975,16 +975,16 @@ body {
     width: 100%;
     height: 100%;
     display: flex;
-    overflow-x: auto;
+    overflow-x: scroll;
+    /* Usar 'scroll' para asegurar el scroll táctil nativo */
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     touch-action: pan-y;
-    /* Permite scroll vertical de la página pero bloquea el horizontal nativo para gestos */
+    /* Permite scroll vertical pero previene el swipe horizontal del navegador */
     cursor: grab;
     user-select: none;
-    /* Evita seleccionar texto/imágenes al arrastrar */
 }
 
 .gallery-wrapper::-webkit-scrollbar {
