@@ -557,7 +557,9 @@ function renderDetail() {
     wrapper.scrollLeft = scrollLeft - walk;
   };
 
+  state.currentDetailImageIndex = 0; // Reset index to first image
   updateDetailDots(photos.length);
+  wrapper.scrollLeft = 0; // Ensure starts at beginning
 
   document.getElementById('detail-category').textContent = product.category;
   document.getElementById('detail-name').textContent = product.name;
