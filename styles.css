@@ -961,6 +961,7 @@ body {
     cursor: pointer;
     font-size: 20px;
     transition: all var(--transition-fast);
+    touch-action: manipulation;
 }
 
 .detail-image-container {
@@ -1135,11 +1136,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    touch-action: manipulation;
 }
 
 .qty-btn:hover {
     background: var(--border);
-    touch-action: manipulation;
 }
 
 .qty-value {
@@ -1167,12 +1168,12 @@ body {
     justify-content: center;
     gap: 10px;
     box-shadow: 0 4px 15px rgba(26, 26, 46, 0.3);
+    touch-action: manipulation;
 }
 
 .detail-add-btn:hover {
     box-shadow: 0 6px 20px rgba(26, 26, 46, 0.4);
     transform: translateY(-1px);
-    touch-action: manipulation;
 }
 
 .detail-add-btn:disabled {
