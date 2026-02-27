@@ -69,6 +69,7 @@ const state = {
   selectedProduct: null,
   detailQty: 1,
   currentDetailImageIndex: 0,
+  currentZoomImageIndex: 0,
   currentPromoIndex: 0,
   isLoading: false
 };
@@ -609,7 +610,7 @@ function renderDetail() {
   images.forEach(img => {
     img.style.cursor = 'zoom-in';
     img.style.pointerEvents = 'auto'; // Allow clicking
-    img.onclick = () => openZoom(img.src);
+    img.onclick = () => openZoom(index); // Send index
   });
 }
 
@@ -836,13 +837,69 @@ function cancelOrder() {
 }
 
 // ---- ZOOM LOGIC ----
-function openZoom(imgSrc) {
+function openZoom(index) {
+  const product = state.selectedProduct;
+  if (!product) return;
+  const photos = product.photos.length > 0 ? product.photos : [product.photo];
+
+  state.currentZoomImageIndex = index;
   const modal = document.getElementById('zoom-modal');
   const zoomImg = document.getElementById('zoom-img');
-  zoomImg.src = imgSrc;
+
+  zoomImg.src = photos[index];
   zoomImg.classList.remove('zoomed');
   modal.classList.add('active');
   document.body.style.overflow = 'hidden'; // Prevent background scroll
+
+  updateZoomUI();
+  initZoomSwipe();
+}
+
+function updateZoomUI() {
+  const product = state.selectedProduct;
+  const photos = product.photos.length > 0 ? product.photos : [product.photo];
+  const total = photos.length;
+  const current = state.currentZoomImageIndex;
+
+  // Update counter
+  document.getElementById('zoom-counter').textContent = `${current + 1} / ${total}`;
+
+  // Show/hide nav buttons
+  const prevBtn = document.getElementById('zoom-prev');
+  const nextBtn = document.getElementById('zoom-next');
+
+  if (total <= 1) {
+    prevBtn.style.display = 'none';
+    nextBtn.style.display = 'none';
+    document.getElementById('zoom-counter').style.display = 'none';
+  } else {
+    prevBtn.style.display = 'flex';
+    nextBtn.style.display = 'flex';
+    document.getElementById('zoom-counter').style.display = 'block';
+  }
+}
+
+function changeZoomImage(delta) {
+  const product = state.selectedProduct;
+  if (!product) return;
+  const photos = product.photos.length > 0 ? product.photos : [product.photo];
+  const total = photos.length;
+
+  let newIndex = state.currentZoomImageIndex + delta;
+  if (newIndex < 0) newIndex = total - 1;
+  if (newIndex >= total) newIndex = 0;
+
+  state.currentZoomImageIndex = newIndex;
+  const zoomImg = document.getElementById('zoom-img');
+
+  // Smooth transition
+  zoomImg.style.opacity = '0';
+  setTimeout(() => {
+    zoomImg.src = photos[newIndex];
+    zoomImg.classList.remove('zoomed');
+    zoomImg.style.opacity = '1';
+    updateZoomUI();
+  }, 150);
 }
 
 function closeZoom() {
@@ -855,6 +912,32 @@ function toggleZoom(e) {
   e.stopPropagation();
   const zoomImg = document.getElementById('zoom-img');
   zoomImg.classList.toggle('zoomed');
+}
+
+// Swipe logic for zoom modal
+let zoomTouchStartX = 0;
+let zoomTouchEndX = 0;
+
+function initZoomSwipe() {
+  const modal = document.getElementById('zoom-modal');
+  modal.ontouchstart = (e) => {
+    zoomTouchStartX = e.changedTouches[0].screenX;
+  };
+  modal.ontouchend = (e) => {
+    zoomTouchEndX = e.changedTouches[0].screenX;
+    handleZoomSwipe();
+  };
+}
+
+function handleZoomSwipe() {
+  const diff = zoomTouchStartX - zoomTouchEndX;
+  if (Math.abs(diff) > 50) { // Threshold
+    if (diff > 0) {
+      changeZoomImage(1); // Swipe left -> Next
+    } else {
+      changeZoomImage(-1); // Swipe right -> Prev
+    }
+  }
 }
 
 // Close zoom modal on Esc key
