@@ -867,12 +867,7 @@ function generateVendorMessage(order) {
 
   let totalQty = 0;
   order.items.forEach(item => {
-    msg += `------------------------------\n`;
-    msg += `📌 Ref: ${item.reference}\n`;
-    msg += `📦 Prod: ${item.name}\n`;
-    msg += `🔢 Cant: ${item.qty}\n`;
-    msg += `💰 Precio: ${formatCurrency(item.price)}\n`;
-    msg += `💵 Subtotal: ${formatCurrency(item.subtotal)}\n`;
+    msg += `• ${item.name} (${item.reference}) x${item.qty}: ${formatCurrency(item.price)} - Sub: ${formatCurrency(item.subtotal)}\n`;
     totalQty += item.qty;
   });
 
