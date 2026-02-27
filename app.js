@@ -607,7 +607,7 @@ function renderDetail() {
 
   // Attach zoom event to images
   const images = wrapper.querySelectorAll('img');
-  images.forEach(img => {
+  images.forEach((img, index) => {
     img.style.cursor = 'zoom-in';
     img.style.pointerEvents = 'auto'; // Allow clicking
     img.onclick = () => openZoom(index); // Send index
@@ -862,20 +862,10 @@ function updateZoomUI() {
   const current = state.currentZoomImageIndex;
 
   // Update counter
-  document.getElementById('zoom-counter').textContent = `${current + 1} / ${total}`;
-
-  // Show/hide nav buttons
-  const prevBtn = document.getElementById('zoom-prev');
-  const nextBtn = document.getElementById('zoom-next');
-
-  if (total <= 1) {
-    prevBtn.style.display = 'none';
-    nextBtn.style.display = 'none';
-    document.getElementById('zoom-counter').style.display = 'none';
-  } else {
-    prevBtn.style.display = 'flex';
-    nextBtn.style.display = 'flex';
-    document.getElementById('zoom-counter').style.display = 'block';
+  const counterEl = document.getElementById('zoom-counter');
+  if (counterEl) {
+    counterEl.textContent = `${current + 1} / ${total}`;
+    counterEl.style.display = total <= 1 ? 'none' : 'block';
   }
 }
 
