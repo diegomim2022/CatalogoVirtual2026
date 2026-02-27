@@ -587,7 +587,15 @@ function renderDetail() {
   updateDetailDots(photos.length);
   wrapper.scrollLeft = 0; // Ensure starts at beginning
 
-  document.getElementById('detail-category').textContent = product.category;
+  const catEl = document.getElementById('detail-category');
+  catEl.textContent = product.category;
+  catEl.onclick = () => {
+    state.selectedCategory = product.category;
+    state.searchQuery = '';
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.value = '';
+    navigateTo('home');
+  };
   document.getElementById('detail-name').textContent = product.name;
   document.getElementById('detail-ref').textContent = product.reference;
   document.getElementById('detail-description').textContent = product.description;
