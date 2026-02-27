@@ -613,6 +613,20 @@ function renderDetail() {
   });
 }
 
+// ---- MOBILE ZOOM PREVENTION ----
+// Prevents double-tap to zoom on specific buttons for mobile
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function (event) {
+  const now = (new Date()).getTime();
+  const target = event.target;
+  const isButton = target.closest('.qty-btn') || target.closest('.detail-add-btn') || target.closest('.detail-back');
+
+  if (isButton && (now - lastTouchEnd <= 300)) {
+    event.preventDefault();
+  }
+  lastTouchEnd = now;
+}, false);
+
 function updateDetailDots(count) {
   const dotsContainer = document.getElementById('detail-dots');
   if (count > 1) {
