@@ -603,6 +603,14 @@ function renderDetail() {
   const addBtn = document.getElementById('detail-add-btn');
   addBtn.disabled = !inStock;
   addBtn.textContent = inStock ? `🛒 Agregar al carrito — ${formatCurrency(price * state.detailQty)}` : 'Producto agotado';
+
+  // Attach zoom event to images
+  const images = wrapper.querySelectorAll('img');
+  images.forEach(img => {
+    img.style.cursor = 'zoom-in';
+    img.style.pointerEvents = 'auto'; // Allow clicking
+    img.onclick = () => openZoom(img.src);
+  });
 }
 
 function updateDetailDots(count) {
@@ -812,6 +820,33 @@ function renderConfirmation() {
 function cancelOrder() {
   navigateTo('cart');
 }
+
+// ---- ZOOM LOGIC ----
+function openZoom(imgSrc) {
+  const modal = document.getElementById('zoom-modal');
+  const zoomImg = document.getElementById('zoom-img');
+  zoomImg.src = imgSrc;
+  zoomImg.classList.remove('zoomed');
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden'; // Prevent background scroll
+}
+
+function closeZoom() {
+  const modal = document.getElementById('zoom-modal');
+  modal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function toggleZoom(e) {
+  e.stopPropagation();
+  const zoomImg = document.getElementById('zoom-img');
+  zoomImg.classList.toggle('zoomed');
+}
+
+// Close zoom modal on Esc key
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeZoom();
+});
 
 function sendOrder() {
   const user = state.currentUser;
