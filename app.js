@@ -11,8 +11,38 @@ const CONFIG = {
   gids: {
     productos: '0',
     clientes: '1788392842'
-  }
+  },
+  cacheExpiry: 5 * 60 * 1000, // 5 minutos de caché
+  productsPerPage: 20 // productos por lote de paginación
 };
+
+// ---- SECURITY: HTML ESCAPE ----
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ---- UTILITY: DEBOUNCE ----
+function debounce(fn, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+// ---- IMAGE ERROR FALLBACK ----
+const IMG_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect fill="%23f0f0f3" width="400" height="400"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-family="sans-serif" font-size="48">📷</text><text x="50%" y="62%" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-family="sans-serif" font-size="14">Imagen no disponible</text></svg>');
+
+function handleImgError(img) {
+  img.onerror = null; // prevent infinite loop
+  img.src = IMG_PLACEHOLDER;
+}
 
 // ---- DEMO DATA ----
 let PRODUCTS = [];
@@ -71,21 +101,57 @@ const state = {
   currentDetailImageIndex: 0,
   currentZoomImageIndex: 0,
   currentPromoIndex: 0,
-  isLoading: false
+  isLoading: false,
+  visibleProductCount: CONFIG.productsPerPage, // paginación
+  paginationObserver: null
 };
 
 // ---- UTILS & SYNC ----
 
 async function fetchSheetData(gid) {
+  // Check sessionStorage cache first
+  const cacheKey = `sheet_cache_${gid}`;
+  const cacheTimeKey = `sheet_cache_time_${gid}`;
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    const cachedTime = sessionStorage.getItem(cacheTimeKey);
+    if (cached && cachedTime && (Date.now() - parseInt(cachedTime)) < CONFIG.cacheExpiry) {
+      return JSON.parse(cached);
+    }
+  } catch (e) { /* sessionStorage not available, proceed */ }
+
   const url = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${gid}`;
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
     const text = await response.text();
-    return parseCSV(text);
+    const data = parseCSV(text);
+
+    // Save to cache
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      sessionStorage.setItem(cacheTimeKey, Date.now().toString());
+    } catch (e) { /* quota exceeded, ignore */ }
+
+    return data;
   } catch (error) {
     console.error('Error fetching sheet data:', error);
+    showNetworkError();
     return null;
+  }
+}
+
+function showNetworkError() {
+  const grid = document.getElementById('products-grid');
+  if (grid) {
+    grid.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 40px 20px;">
+        <div style="font-size: 48px; margin-bottom: 12px;">⚠️</div>
+        <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Error de conexión</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">No se pudieron cargar los productos. Verifica tu conexión a internet.</p>
+        <button class="btn btn-primary" style="max-width: 200px; margin: 0 auto;" onclick="location.reload()">Reintentar</button>
+      </div>
+    `;
   }
 }
 
@@ -154,7 +220,12 @@ async function initData() {
   state.isLoading = true;
   document.body.classList.add('loading');
 
-  const sheetProducts = await fetchSheetData(CONFIG.gids.productos);
+  // Fetch products and clients in parallel for faster loading
+  const [sheetProducts, sheetClients] = await Promise.all([
+    fetchSheetData(CONFIG.gids.productos),
+    fetchSheetData(CONFIG.gids.clientes)
+  ]);
+
   if (sheetProducts && sheetProducts.length > 0) {
     PRODUCTS = sheetProducts
       .filter(p => p.idproducto || p['ID Producto'] || p.id)
@@ -166,7 +237,7 @@ async function initData() {
 
         return {
           id: getV('ID Producto'),
-          photo: transformDriveUrl(getV('Foto')) || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&q=80',
+          photo: transformDriveUrl(getV('Foto')) || IMG_PLACEHOLDER,
           photos: [getV('Foto'), getV('Foto2'), getV('Foto3'), getV('Foto4')].map(url => transformDriveUrl(url)).filter(f => f && f.trim() !== ''),
           reference: getV('Referencia') || '',
           name: getV('Nombre') || 'Sin nombre',
@@ -195,7 +266,6 @@ async function initData() {
     shuffleArray(PRODUCTS);
   }
 
-  const sheetClients = await fetchSheetData(CONFIG.gids.clientes);
   if (sheetClients && sheetClients.length > 0) {
     DEMO_CLIENTS = sheetClients.map(c => ({
       id: c['Identificacion']?.toString().trim(),
@@ -227,8 +297,7 @@ function startPromoRotation() {
   }, 5000);
 }
 
-// Ensure initData runs
-window.addEventListener('DOMContentLoaded', initData);
+// initData is called from the consolidated DOMContentLoaded listener at the bottom
 
 // ---- HELPERS ----
 function formatCurrency(amount) {
@@ -236,8 +305,10 @@ function formatCurrency(amount) {
 }
 
 function generateOrderId() {
-  const count = state.orders.length + 1;
-  return 'PED-' + String(count).padStart(4, '0');
+  // Use timestamp-based ID to avoid collisions
+  const now = Date.now();
+  const random = Math.floor(Math.random() * 1000);
+  return 'PED-' + now.toString(36).toUpperCase().slice(-5) + random.toString(36).toUpperCase().padStart(2, '0');
 }
 
 function formatDate(date) {
@@ -318,8 +389,8 @@ function navigateTo(screenId) {
 // ---- AUTH ----
 function handleLogin(e) {
   e.preventDefault();
-  const clientId = document.getElementById('login-id').value.trim();
-  const pin = document.getElementById('login-pin').value.trim();
+  const clientId = document.getElementById('login-id').value.trim().replace(/[<>"'&]/g, '');
+  const pin = document.getElementById('login-pin').value.trim().replace(/[^0-9]/g, '');
   const errorEl = document.getElementById('login-error');
 
   if (!clientId) return;
@@ -354,8 +425,11 @@ function logout() {
   state.cart = [];
   state.searchQuery = '';
   state.selectedCategory = 'all';
+  state.visibleProductCount = CONFIG.productsPerPage;
   document.getElementById('login-id').value = '';
   document.getElementById('login-pin').value = '';
+  if (promoInterval) { clearInterval(promoInterval); promoInterval = null; }
+  if (state.paginationObserver) { state.paginationObserver.disconnect(); state.paginationObserver = null; }
   navigateTo('login');
 }
 
@@ -396,6 +470,7 @@ function getFilteredProducts() {
 }
 
 function renderCatalog() {
+  state.visibleProductCount = CONFIG.productsPerPage; // reset pagination
   renderPromoBanner();
   renderCategories();
   renderProducts();
@@ -425,15 +500,19 @@ function renderPromoBanner() {
   const price = getProductPrice(product);
 
   container.style.opacity = '0';
+  const safeId = escapeHtml(product.id);
+  const safeName = escapeHtml(product.name);
+  const safeRef = escapeHtml(product.reference);
+  const safePhoto = escapeHtml(product.photo);
   setTimeout(() => {
     container.innerHTML = `
-      <div class="promo-content" onclick="openProduct('${product.id}')" style="cursor: pointer; flex: 1; padding-right: 15px; min-width: 0;">
+      <div class="promo-content" onclick="openProduct('${safeId}')" style="cursor: pointer; flex: 1; padding-right: 15px; min-width: 0;">
         <span class="promo-tag" style="background: #e94560 !important; color: white !important;">🔥 Oferta Especial</span>
-        <h3 style="font-size: 18px; margin: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${product.name}</h3>
-        <p style="font-size: 13px; margin: 0; color: #6b7280;">${product.reference} — <strong style="color: #e94560;">${formatCurrency(price)}</strong></p>
+        <h3 style="font-size: 18px; margin: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeName}</h3>
+        <p style="font-size: 13px; margin: 0; color: #6b7280;">${safeRef} — <strong style="color: #e94560;">${formatCurrency(price)}</strong></p>
       </div>
-      <div class="promo-image-container" onclick="openProduct('${product.id}')" style="cursor: pointer; width: 90px; height: 90px; flex-shrink: 0; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #eee;">
-        <img src="${product.photo}" alt="${product.name}" style="max-width: 100%; max-height: 100%; object-fit: contain; display: block;">
+      <div class="promo-image-container" onclick="openProduct('${safeId}')" style="cursor: pointer; width: 90px; height: 90px; flex-shrink: 0; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #eee;">
+        <img src="${safePhoto}" alt="${safeName}" style="max-width: 100%; max-height: 100%; object-fit: contain; display: block;" onerror="handleImgError(this)">
       </div>
     `;
     container.style.opacity = '1';
@@ -456,12 +535,16 @@ function renderCategories() {
   const container = document.getElementById('categories-list');
   if (!container) return;
 
-  container.innerHTML = CATEGORIES.map(cat => `
-    <div class="category-chip ${state.selectedCategory === cat.id ? 'active' : ''}" onclick="selectCategory('${cat.id}')">
+  container.innerHTML = CATEGORIES.map(cat => {
+    const safeId = escapeHtml(cat.id);
+    const safeLabel = escapeHtml(cat.label);
+    return `
+    <div class="category-chip ${state.selectedCategory === cat.id ? 'active' : ''}" onclick="selectCategory('${safeId}')">
       <div class="cat-icon"><span>${cat.icon}</span></div>
-      <span class="cat-label">${cat.label}</span>
+      <span class="cat-label">${safeLabel}</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function selectCategory(catId) {
@@ -469,18 +552,29 @@ function selectCategory(catId) {
   renderCatalog();
 }
 
+const handleSearchDebounced = debounce(function () {
+  state.visibleProductCount = CONFIG.productsPerPage; // reset pagination on new search
+  renderProducts();
+}, 300);
+
 function handleSearch(e) {
   state.searchQuery = e.target.value;
-  renderProducts();
+  handleSearchDebounced();
 }
 
 function renderProducts() {
   const container = document.getElementById('products-grid');
   if (!container) return;
 
-  const products = getFilteredProducts();
+  const allProducts = getFilteredProducts();
 
-  if (products.length === 0) {
+  // Cleanup previous observer
+  if (state.paginationObserver) {
+    state.paginationObserver.disconnect();
+    state.paginationObserver = null;
+  }
+
+  if (allProducts.length === 0) {
     container.innerHTML = `
       <div style="grid-column: 1/-1; text-align: center; padding: 40px 0;">
         <div style="font-size: 48px; margin-bottom: 12px;">🔍</div>
@@ -491,28 +585,68 @@ function renderProducts() {
     return;
   }
 
-  container.innerHTML = products.map(product => {
+  // Paginated slice
+  const visibleProducts = allProducts.slice(0, state.visibleProductCount);
+
+  // Use DocumentFragment for batch DOM insertion
+  const fragment = document.createDocumentFragment();
+  const tempDiv = document.createElement('div');
+
+  tempDiv.innerHTML = visibleProducts.map(product => {
     const price = getProductPrice(product);
     const inStock = product.stock > 0;
+    const safeId = escapeHtml(product.id);
+    const safeName = escapeHtml(product.name);
+    const safeRef = escapeHtml(product.reference);
+    const safePhoto = escapeHtml(product.photo);
 
     return `
-      <div class="product-card" onclick="openProduct('${product.id}')">
+      <div class="product-card" onclick="openProduct('${safeId}')">
         <div class="product-card-image">
-          <img src="${product.photo}" alt="${product.name}" loading="lazy">
+          <img src="${safePhoto}" alt="${safeName}" loading="lazy" onerror="handleImgError(this)">
           <span class="stock-badge ${inStock ? 'in-stock' : 'out-of-stock'}">
             ${inStock ? `✓ ${product.stock} disp.` : '✗ Agotado'}
           </span>
           <button class="fav-btn" onclick="event.stopPropagation()">♡</button>
         </div>
         <div class="product-card-info">
-          <div class="product-name">${product.name}</div>
-          <div class="product-ref">${product.reference}</div>
+          <div class="product-name">${safeName}</div>
+          <div class="product-ref">${safeRef}</div>
           <div class="product-price">${formatCurrency(price)}</div>
         </div>
-        ${inStock ? `<button class="add-cart-btn" onclick="event.stopPropagation(); quickAddToCart('${product.id}')" title="Agregar al carrito">+</button>` : ''}
+        ${inStock ? `<button class="add-cart-btn" onclick="event.stopPropagation(); quickAddToCart('${safeId}')" title="Agregar al carrito">+</button>` : ''}
       </div>
     `;
   }).join('');
+
+  // Add "load more" sentinel if there are more products
+  if (visibleProducts.length < allProducts.length) {
+    tempDiv.innerHTML += `<div id="pagination-sentinel" style="grid-column: 1/-1; text-align: center; padding: 20px 0;">
+      <div class="pagination-loader" style="width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto; animation: spin 0.8s linear infinite;"></div>
+      <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 8px;">Cargando más productos...</p>
+    </div>`;
+  }
+
+  while (tempDiv.firstChild) {
+    fragment.appendChild(tempDiv.firstChild);
+  }
+
+  container.innerHTML = '';
+  container.appendChild(fragment);
+
+  // Setup IntersectionObserver for infinite scroll
+  if (visibleProducts.length < allProducts.length) {
+    const sentinel = document.getElementById('pagination-sentinel');
+    if (sentinel) {
+      state.paginationObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          state.visibleProductCount += CONFIG.productsPerPage;
+          renderProducts();
+        }
+      }, { rootMargin: '200px' });
+      state.paginationObserver.observe(sentinel);
+    }
+  }
 }
 
 // ---- PRODUCT DETAIL ----
@@ -535,7 +669,7 @@ function renderDetail() {
   const wrapper = document.getElementById('gallery-wrapper');
 
   wrapper.innerHTML = photos.map(photo => `
-    <img src="${photo}" alt="${product.name}" loading="lazy" draggable="false">
+    <img src="${escapeHtml(photo)}" alt="${escapeHtml(product.name)}" loading="lazy" draggable="false" onerror="handleImgError(this)">
   `).join('');
 
   // Add scroll listener for dots
@@ -786,23 +920,27 @@ function renderCart() {
 
   container.innerHTML = state.cart.map((item, index) => {
     const overStock = item.qty > item.maxStock;
+    const safeId = escapeHtml(item.productId);
+    const safeName = escapeHtml(item.name);
+    const safeRef = escapeHtml(item.reference);
+    const safePhoto = escapeHtml(item.photo);
     return `
       <div class="cart-item" style="animation-delay: ${index * 0.05}s">
         <div class="cart-item-image">
-          <img src="${item.photo}" alt="${item.name}">
+          <img src="${safePhoto}" alt="${safeName}" onerror="handleImgError(this)">
         </div>
         <div class="cart-item-details">
-          <div class="item-name">${item.name}</div>
-          <div class="item-ref">${item.reference}</div>
+          <div class="item-name">${safeName}</div>
+          <div class="item-ref">${safeRef}</div>
           <div class="item-price">${formatCurrency(item.price * item.qty)}</div>
           ${overStock ? '<div class="cart-stock-warning">⚠️ Excede stock disponible</div>' : ''}
         </div>
         <div class="cart-item-actions">
-          <button class="delete-btn" onclick="removeFromCart('${item.productId}')" title="Eliminar">🗑️</button>
+          <button class="delete-btn" onclick="removeFromCart('${safeId}')" title="Eliminar">🗑️</button>
           <div class="cart-item-qty">
-            <button onclick="changeCartQty('${item.productId}', -1)">−</button>
+            <button onclick="changeCartQty('${safeId}', -1)">−</button>
             <span>${item.qty}</span>
-            <button onclick="changeCartQty('${item.productId}', 1)">+</button>
+            <button onclick="changeCartQty('${safeId}', 1)">+</button>
           </div>
         </div>
       </div>
@@ -862,15 +1000,18 @@ function renderConfirmation() {
   document.getElementById('confirm-date').textContent = formatDate(new Date());
 
   const productsList = document.getElementById('confirm-products');
-  productsList.innerHTML = state.cart.map(item => `
+  productsList.innerHTML = state.cart.map(item => {
+    const safeName = escapeHtml(item.name);
+    return `
     <div class="confirm-product-item">
       <div class="prod-info">
-        <div class="prod-name">${item.name}</div>
+        <div class="prod-name">${safeName}</div>
         <div class="prod-qty">x${item.qty} · ${formatCurrency(item.price)} c/u</div>
       </div>
       <div class="prod-subtotal">${formatCurrency(item.price * item.qty)}</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   document.getElementById('confirm-total').textContent = formatCurrency(getCartTotal());
 }
@@ -1090,11 +1231,12 @@ function renderOrders() {
   container.innerHTML = userOrders.map(order => {
     const statusClass = order.status === 'Pendiente' ? 'pending' : order.status === 'Enviado' ? 'sent' : 'cancelled';
     const statusLabel = order.status === 'Pendiente' ? '⏳ Pendiente' : order.status === 'Enviado' ? '✅ Enviado' : '❌ Cancelado';
+    const safeOrderId = escapeHtml(order.id);
 
     return `
       <div class="order-card" onclick="toggleOrderDetails(this)">
         <div class="order-card-header">
-          <span class="order-id">${order.id}</span>
+          <span class="order-id">${safeOrderId}</span>
           <span class="order-status ${statusClass}">${statusLabel}</span>
         </div>
         <div class="order-card-body">
@@ -1104,7 +1246,7 @@ function renderOrders() {
         <div class="order-details-list">
           ${order.items.map(item => `
             <div class="order-detail-item">
-              <span>${item.name} x${item.qty}</span>
+              <span>${escapeHtml(item.name)} x${item.qty}</span>
               <span>${formatCurrency(item.subtotal)}</span>
             </div>
           `).join('')}
@@ -1118,13 +1260,13 @@ function toggleOrderDetails(card) {
   card.classList.toggle('expanded');
 }
 
-// ---- INITIALIZATION ----
+// ---- INITIALIZATION (consolidated single listener) ----
 document.addEventListener('DOMContentLoaded', () => {
   // Login form
   const loginForm = document.getElementById('login-form');
   if (loginForm) loginForm.addEventListener('submit', handleLogin);
 
-  // Search
+  // Search with debounce
   const searchInput = document.getElementById('search-input');
   if (searchInput) searchInput.addEventListener('input', handleSearch);
 
@@ -1136,6 +1278,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Start on login
+  // Start on login and load data
   navigateTo('login');
+  initData();
 });
