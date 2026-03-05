@@ -636,6 +636,41 @@ document.addEventListener('touchend', function (event) {
   lastTouchEnd = now;
 }, false);
 
+// ---- SWIPE BACK GESTURE (Product Detail) ----
+(function () {
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+
+  const detailScreen = document.getElementById('screen-detail');
+
+  detailScreen.addEventListener('touchstart', function (e) {
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  detailScreen.addEventListener('touchend', function (e) {
+    if (state.currentScreen !== 'detail') return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = Math.abs(touchEndY - touchStartY);
+    const elapsed = Date.now() - touchStartTime;
+
+    // Only trigger if: swipe right, enough distance, mostly horizontal, fast enough
+    if (deltaX > 80 && deltaY < 100 && elapsed < 500) {
+      // If swiping on the gallery, only go back if at the first image
+      const gallery = document.getElementById('gallery-wrapper');
+      if (gallery && gallery.contains(e.target) && state.currentDetailImageIndex > 0) {
+        return; // Let the gallery handle the swipe
+      }
+      navigateTo('home');
+    }
+  }, { passive: true });
+})();
+
 function updateDetailDots(count) {
   const dotsContainer = document.getElementById('detail-dots');
   if (count > 1) {
