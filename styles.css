@@ -1989,3 +1989,69 @@ body {
     width: 100%;
     margin-bottom: 8px;
 }
+
+/* ============================
+   PAGINATION SPINNER
+   ============================ */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================
+   RESPONSIVE — TABLET & DESKTOP
+   ============================ */
+@media (min-width: 431px) and (max-width: 768px) {
+    .app-container {
+        max-width: 100%;
+    }
+
+    .products-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+
+    .bottom-nav {
+        max-width: 100%;
+    }
+
+    .cart-footer {
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 769px) {
+    .app-container {
+        max-width: 960px;
+    }
+
+    .products-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+
+    .bottom-nav {
+        max-width: 960px;
+    }
+
+    .cart-footer {
+        max-width: 960px;
+    }
+
+    .detail-image-container {
+        height: 500px;
+    }
+
+    .login-card {
+        max-width: 420px;
+    }
+
+    .success-card {
+        max-width: 420px;
+    }
+}
