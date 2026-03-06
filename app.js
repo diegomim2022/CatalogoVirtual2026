@@ -269,7 +269,6 @@ async function initData() {
   if (sheetClients && sheetClients.length > 0) {
     DEMO_CLIENTS = sheetClients.map(c => ({
       id: c['Identificacion']?.toString().trim(),
-      pin: c['PIN']?.toString().trim() || '',
       name: c['Nombre'],
       type: c['Tipo Cliente'],
       phone: c['Telefono WhatsApp']?.toString().trim() || ''
@@ -390,30 +389,31 @@ function navigateTo(screenId) {
 function handleLogin(e) {
   e.preventDefault();
   const clientId = document.getElementById('login-id').value.trim().replace(/[<>"'&]/g, '');
-  const pin = document.getElementById('login-pin').value.trim().replace(/[^0-9]/g, '');
   const errorEl = document.getElementById('login-error');
 
   if (!clientId) return;
 
-  // 1. Intentar encontrar coincidencia exacta (ID + PIN)
-  const validClient = DEMO_CLIENTS.find(c => c.id === clientId && c.pin === pin);
+  // Buscar cliente registrado por número de documento
+  const registeredClient = DEMO_CLIENTS.find(c => c.id === clientId);
 
-  if (validClient) {
-    // Si coincide ID y PIN, entra con su perfil original (ej. Mayorista)
-    state.currentUser = validClient;
+  if (registeredClient) {
+    // Cliente registrado — entra como Mayorista
+    state.currentUser = {
+      id: registeredClient.id,
+      name: registeredClient.name,
+      type: 'Mayorista',
+      phone: registeredClient.phone
+    };
   } else {
-    // 2. Si no coincide o no tiene PIN, entra como 'Usuario Final'
-    const existingClient = DEMO_CLIENTS.find(c => c.id === clientId);
-
+    // Cliente no registrado — entra como Usuario Final
     state.currentUser = {
       id: clientId,
-      name: existingClient ? existingClient.name : ('Cliente ' + clientId),
+      name: 'Cliente ' + clientId,
       type: 'Usuario Final',
-      phone: existingClient ? existingClient.phone : ''
+      phone: ''
     };
   }
 
-  // Éxito de login para todos
   errorEl.classList.remove('show');
   navigateTo('home');
   renderHeader();
@@ -427,7 +427,6 @@ function logout() {
   state.selectedCategory = 'all';
   state.visibleProductCount = CONFIG.productsPerPage;
   document.getElementById('login-id').value = '';
-  document.getElementById('login-pin').value = '';
   if (promoInterval) { clearInterval(promoInterval); promoInterval = null; }
   if (state.paginationObserver) { state.paginationObserver.disconnect(); state.paginationObserver = null; }
   navigateTo('login');
