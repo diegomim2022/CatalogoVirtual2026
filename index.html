@@ -271,6 +271,116 @@
       </div>
     </div>
 
+    <!-- ==================== ANALYTICS ADMIN PANEL ==================== -->
+    <div id="screen-analytics" class="screen">
+      <div class="analytics-header">
+        <h2>📊 Panel de Analítica</h2>
+        <button class="analytics-clear-btn" onclick="if(confirm('¿Borrar todos los datos de analítica?')){Analytics.clearAll();renderAnalytics();showToast('Datos de analítica borrados');}">🗑️ Limpiar datos</button>
+      </div>
+
+      <div class="analytics-content">
+        <!-- Summary Cards -->
+        <div class="analytics-cards">
+          <div class="analytics-card card-accesses">
+            <div class="analytics-card-icon">📈</div>
+            <div class="analytics-card-value" id="stat-accesses-today">0</div>
+            <div class="analytics-card-label">Accesos hoy</div>
+          </div>
+          <div class="analytics-card card-clients">
+            <div class="analytics-card-icon">👥</div>
+            <div class="analytics-card-value" id="stat-unique-clients">0</div>
+            <div class="analytics-card-label">Clientes únicos hoy</div>
+          </div>
+          <div class="analytics-card card-views">
+            <div class="analytics-card-icon">👁️</div>
+            <div class="analytics-card-value" id="stat-views-today">0</div>
+            <div class="analytics-card-label">Productos vistos hoy</div>
+          </div>
+          <div class="analytics-card card-total">
+            <div class="analytics-card-icon">🌐</div>
+            <div class="analytics-card-value" id="stat-total-accesses">0</div>
+            <div class="analytics-card-label">Total acumulado</div>
+          </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div class="analytics-section" id="analytics-alerts-section" style="display:none;">
+          <h3>🔔 Alertas de Clientes Interesados</h3>
+          <div id="analytics-alerts"></div>
+        </div>
+
+        <!-- Client Ranking -->
+        <div class="analytics-section">
+          <h3>🏆 Ranking de Clientes</h3>
+          <div class="analytics-table-wrapper">
+            <table class="analytics-table" id="analytics-client-ranking">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Cliente</th>
+                  <th>Accesos</th>
+                  <th>Productos</th>
+                  <th>Último acceso</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="analytics-no-clients" class="analytics-empty" style="display:none;">
+            <span>📭</span> Aún no hay datos de clientes
+          </div>
+        </div>
+
+        <!-- Top Products -->
+        <div class="analytics-section">
+          <h3>🔥 Top 10 Productos Más Vistos</h3>
+          <div class="analytics-table-wrapper">
+            <table class="analytics-table" id="analytics-top-products">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Producto</th>
+                  <th>Vistas</th>
+                  <th>Clientes</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="analytics-no-products" class="analytics-empty" style="display:none;">
+            <span>📭</span> Aún no hay datos de productos
+          </div>
+        </div>
+
+        <!-- Daily Chart -->
+        <div class="analytics-section">
+          <h3>📅 Accesos por Día (Últimos 30 días)</h3>
+          <div class="analytics-chart-container">
+            <canvas id="analytics-daily-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== ADMIN PIN MODAL ==================== -->
+    <div id="admin-pin-modal" class="admin-pin-overlay">
+      <div class="admin-pin-card">
+        <div class="admin-pin-header">
+          <span>🔒</span>
+          <h3>Acceso Administrativo</h3>
+          <p>Ingresa la clave de administrador</p>
+        </div>
+        <form id="admin-pin-form">
+          <input type="password" id="admin-pin-input" placeholder="Clave de acceso" autocomplete="off">
+          <div id="admin-pin-error" class="admin-pin-error"></div>
+          <div class="admin-pin-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeAdminPinModal()" style="flex:1;">Cancelar</button>
+            <button type="submit" class="btn btn-primary" style="flex:1;">Ingresar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- ==================== BOTTOM NAVIGATION ==================== -->
     <nav class="bottom-nav" id="bottom-nav" style="display: none;">
       <button class="nav-item active" data-screen="home">
@@ -289,6 +399,10 @@
       <button class="nav-item" data-screen="orders">
         <span class="nav-icon">👤</span>
         <span class="nav-label">Pedidos</span>
+      </button>
+      <button class="nav-item" data-screen="analytics" onclick="requestAdminAccess()">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Admin</span>
       </button>
     </nav>
 
@@ -337,6 +451,8 @@
       });
     }
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="analytics.js"></script>
   <script src="app.js"></script>
 </body>
 
