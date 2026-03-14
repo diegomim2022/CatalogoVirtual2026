@@ -13,7 +13,9 @@ const CONFIG = {
     clientes: '1788392842'
   },
   cacheExpiry: 5 * 60 * 1000, // 5 minutos de caché
-  productsPerPage: 20 // productos por lote de paginación
+  productsPerPage: 20, // productos por lote de paginación
+  adminPin: '1234', // Clave de acceso al panel admin
+  analyticsWebAppUrl: 'https://script.google.com/macros/s/AKfycby_UuX0XEZ-bH1DSQtMjEOvN_Md5-XTSoWECyX9ingLZWaSWpUGjMQmCykBYvKeG4DVgQ/exec' // URL del Google Apps Script Web App
 };
 
 // ---- SECURITY: HTML ESCAPE ----
@@ -278,6 +280,11 @@ async function initData() {
   state.isLoading = false;
   document.body.classList.remove('loading');
 
+  // Initialize Analytics Web App URL
+  if (typeof Analytics !== 'undefined' && CONFIG.analyticsWebAppUrl) {
+    Analytics.setWebAppUrl(CONFIG.analyticsWebAppUrl);
+  }
+
   navigateTo('login');
   renderHeader();
   startPromoRotation();
@@ -380,6 +387,7 @@ function navigateTo(screenId) {
   if (screenId === 'orders') renderOrders();
   if (screenId === 'detail') renderDetail();
   if (screenId === 'confirm') renderConfirmation();
+  if (screenId === 'analytics') renderAnalytics();
 
   // Scroll to top
   window.scrollTo(0, 0);
@@ -415,6 +423,12 @@ function handleLogin(e) {
   }
 
   errorEl.classList.remove('show');
+
+  // Track access for analytics
+  if (typeof Analytics !== 'undefined') {
+    Analytics.trackAccess(state.currentUser.id, state.currentUser.name);
+  }
+
   navigateTo('home');
   renderHeader();
   updateCartBadge();
@@ -653,6 +667,12 @@ function openProduct(productId) {
   state.selectedProduct = PRODUCTS.find(p => p.id === productId);
   state.detailQty = 1;
   state.currentDetailImageIndex = 0;
+
+  // Track product view for analytics
+  if (typeof Analytics !== 'undefined' && state.currentUser && state.selectedProduct) {
+    Analytics.trackProductView(state.currentUser.id, state.selectedProduct.id, state.selectedProduct.name);
+  }
+
   navigateTo('detail');
 }
 
@@ -1273,11 +1293,257 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => {
       const screen = item.dataset.screen;
-      if (screen) navigateTo(screen);
+      if (screen && screen !== 'analytics') navigateTo(screen);
     });
   });
+
+  // Admin PIN form
+  const adminPinForm = document.getElementById('admin-pin-form');
+  if (adminPinForm) {
+    adminPinForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const pin = document.getElementById('admin-pin-input').value;
+      const errorEl = document.getElementById('admin-pin-error');
+      if (pin === CONFIG.adminPin) {
+        state.adminAuthenticated = true;
+        closeAdminPinModal();
+        navigateTo('analytics');
+      } else {
+        errorEl.textContent = 'Clave incorrecta';
+        document.getElementById('admin-pin-input').value = '';
+      }
+    });
+  }
 
   // Start on login and load data
   navigateTo('login');
   initData();
 });
+
+// ---- ADMIN AUTH ----
+function requestAdminAccess() {
+  if (state.adminAuthenticated) {
+    navigateTo('analytics');
+  } else {
+    const modal = document.getElementById('admin-pin-modal');
+    const errorEl = document.getElementById('admin-pin-error');
+    const input = document.getElementById('admin-pin-input');
+    if (errorEl) errorEl.textContent = '';
+    if (input) input.value = '';
+    modal.classList.add('show');
+    setTimeout(() => input && input.focus(), 100);
+  }
+}
+
+function closeAdminPinModal() {
+  document.getElementById('admin-pin-modal').classList.remove('show');
+}
+
+// ---- ANALYTICS PANEL RENDER ----
+let analyticsChart = null;
+
+function renderAnalytics() {
+  if (typeof Analytics === 'undefined') return;
+
+  // Configurar URL del Web App si está definida
+  if (CONFIG.analyticsWebAppUrl && !Analytics.getWebAppUrl()) {
+    Analytics.setWebAppUrl(CONFIG.analyticsWebAppUrl);
+  }
+
+  // Intentar sincronizar desde Google Sheets antes de mostrar datos
+  if (Analytics.getWebAppUrl()) {
+    Analytics.loadFromSheets().then(() => {
+      renderAnalyticsData();
+    }).catch(() => {
+      renderAnalyticsData(); // Si falla, usar datos locales
+    });
+  } else {
+    renderAnalyticsData();
+  }
+}
+
+function renderAnalyticsData() {
+  // Summary cards
+  const summary = Analytics.getSummary();
+  document.getElementById('stat-accesses-today').textContent = summary.accessesToday;
+  document.getElementById('stat-unique-clients').textContent = summary.uniqueClientsToday;
+  document.getElementById('stat-views-today').textContent = summary.viewsToday;
+  document.getElementById('stat-total-accesses').textContent = summary.totalAccesses;
+
+  // Alerts
+  const accessAlerts = Analytics.getAlerts();
+  const sessionAlerts = Analytics.getSessionAlerts();
+  const alertsSection = document.getElementById('analytics-alerts-section');
+  const alertsContainer = document.getElementById('analytics-alerts');
+
+  if (accessAlerts.length > 0 || sessionAlerts.length > 0) {
+    alertsSection.style.display = 'block';
+    let alertsHtml = '';
+
+    accessAlerts.forEach(a => {
+      alertsHtml += `
+        <div class="analytics-alert">
+          <div class="analytics-alert-icon">⚠️</div>
+          <div class="analytics-alert-content">
+            <div class="analytics-alert-title">${escapeHtml(a.clientName)} (${escapeHtml(a.clientId)})</div>
+            <div class="analytics-alert-desc">${a.count} accesos en las últimas ${Analytics.ALERT_HOURS}h — Último: ${formatDate(a.lastAccess)}</div>
+          </div>
+        </div>
+      `;
+    });
+
+    sessionAlerts.forEach(s => {
+      alertsHtml += `
+        <div class="analytics-alert session-alert">
+          <div class="analytics-alert-icon">🔥</div>
+          <div class="analytics-alert-content">
+            <div class="analytics-alert-title">Cliente ${escapeHtml(s.clientId)}</div>
+            <div class="analytics-alert-desc">${s.productsViewed} productos diferentes vistos en esta sesión (${s.totalViews} vistas totales)</div>
+          </div>
+        </div>
+      `;
+    });
+
+    alertsContainer.innerHTML = alertsHtml;
+  } else {
+    alertsSection.style.display = 'none';
+  }
+
+  // Client Ranking
+  const ranking = Analytics.getClientRanking();
+  const rankingTable = document.getElementById('analytics-client-ranking');
+  const rankingBody = rankingTable.querySelector('tbody');
+  const noClients = document.getElementById('analytics-no-clients');
+
+  if (ranking.length > 0) {
+    rankingTable.style.display = 'table';
+    noClients.style.display = 'none';
+    rankingBody.innerHTML = ranking.map((c, i) => {
+      const rankClass = i < 3 ? ` top-${i + 1}` : '';
+      const lastAccess = c.lastAccess ? formatDate(c.lastAccess) : '—';
+      return `
+        <tr>
+          <td><span class="rank-badge${rankClass}">${i + 1}</span></td>
+          <td>
+            <span class="client-name">${escapeHtml(c.clientName)}</span>
+            <span class="client-id">ID: ${escapeHtml(c.clientId)}</span>
+          </td>
+          <td><strong>${c.totalAccesses}</strong></td>
+          <td>${c.productsViewed}</td>
+          <td style="font-size:11px;color:var(--text-secondary);">${lastAccess}</td>
+        </tr>
+      `;
+    }).join('');
+  } else {
+    rankingTable.style.display = 'none';
+    noClients.style.display = 'block';
+  }
+
+  // Top Products
+  const topProducts = Analytics.getTopProducts(10);
+  const productsTable = document.getElementById('analytics-top-products');
+  const productsBody = productsTable.querySelector('tbody');
+  const noProducts = document.getElementById('analytics-no-products');
+
+  if (topProducts.length > 0) {
+    productsTable.style.display = 'table';
+    noProducts.style.display = 'none';
+    const maxViews = topProducts[0].totalViews;
+    productsBody.innerHTML = topProducts.map((p, i) => {
+      const rankClass = i < 3 ? ` top-${i + 1}` : '';
+      const barWidth = Math.round((p.totalViews / maxViews) * 60);
+      return `
+        <tr>
+          <td><span class="rank-badge${rankClass}">${i + 1}</span></td>
+          <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.productName)}</td>
+          <td>
+            <div class="views-bar">
+              <span>${p.totalViews}</span>
+              <div class="views-bar-fill" style="width:${barWidth}px"></div>
+            </div>
+          </td>
+          <td>${p.uniqueClients}</td>
+        </tr>
+      `;
+    }).join('');
+  } else {
+    productsTable.style.display = 'none';
+    noProducts.style.display = 'block';
+  }
+
+  // Daily Chart
+  renderDailyChart();
+}
+
+function renderDailyChart() {
+  const ctx = document.getElementById('analytics-daily-chart');
+  if (!ctx) return;
+
+  const dailyData = Analytics.getDailyAccessStats(30);
+  const labels = dailyData.map(d => {
+    const date = new Date(d.date + 'T00:00:00');
+    return date.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+  });
+  const data = dailyData.map(d => d.count);
+
+  // Destroy existing chart
+  if (analyticsChart) {
+    analyticsChart.destroy();
+    analyticsChart = null;
+  }
+
+  if (typeof Chart === 'undefined') return;
+
+  analyticsChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Accesos',
+        data: data,
+        backgroundColor: 'rgba(233, 69, 96, 0.7)',
+        borderColor: '#e94560',
+        borderWidth: 1,
+        borderRadius: 4,
+        barPercentage: 0.7
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a2e',
+          titleFont: { family: 'Inter', size: 12 },
+          bodyFont: { family: 'Inter', size: 11 },
+          cornerRadius: 8,
+          padding: 10
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: { family: 'Inter', size: 9 },
+            color: '#9ca3af',
+            maxRotation: 45,
+            autoSkip: true,
+            maxTicksLimit: 10
+          }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            font: { family: 'Inter', size: 10 },
+            color: '#9ca3af',
+            precision: 0
+          },
+          grid: {
+            color: 'rgba(0,0,0,0.04)'
+          }
+        }
+      }
+    }
+  });
+}
