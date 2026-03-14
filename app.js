@@ -14,7 +14,7 @@ const CONFIG = {
   },
   cacheExpiry: 5 * 60 * 1000, // 5 minutos de caché
   productsPerPage: 20, // productos por lote de paginación
-  adminPin: '1234', // Clave de acceso al panel admin
+  adminPin: '1324', // Clave de acceso al panel admin
   analyticsWebAppUrl: 'https://script.google.com/macros/s/AKfycby_UuX0XEZ-bH1DSQtMjEOvN_Md5-XTSoWECyX9ingLZWaSWpUGjMQmCykBYvKeG4DVgQ/exec' // URL del Google Apps Script Web App
 };
 
