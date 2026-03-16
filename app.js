@@ -15,7 +15,8 @@ const CONFIG = {
   cacheExpiry: 5 * 60 * 1000, // 5 minutos de caché
   productsPerPage: 20, // productos por lote de paginación
   adminPin: '1324', // Clave de acceso al panel admin
-  analyticsWebAppUrl: 'https://script.google.com/macros/s/AKfycby_UuX0XEZ-bH1DSQtMjEOvN_Md5-XTSoWECyX9ingLZWaSWpUGjMQmCykBYvKeG4DVgQ/exec' // URL del Google Apps Script Web App
+  analyticsWebAppUrl: 'https://script.google.com/macros/s/AKfycby_UuX0XEZ-bH1DSQtMjEOvN_Md5-XTSoWECyX9ingLZWaSWpUGjMQmCykBYvKeG4DVgQ/exec', // URL del Google Apps Script Web App
+  sessionExpiry: 48 * 60 * 60 * 1000 // 48 horas para persistencia de sesión y carrito
 };
 
 // ---- SECURITY: HTML ESCAPE ----
@@ -107,6 +108,57 @@ const state = {
   visibleProductCount: CONFIG.productsPerPage, // paginación
   paginationObserver: null
 };
+
+// ---- PERSISTENCE UTILS ----
+
+function saveToStorage(key, data) {
+  try {
+    const record = {
+      timestamp: Date.now(),
+      data: data
+    };
+    localStorage.setItem(key, JSON.stringify(record));
+  } catch (e) {
+    console.warn(`Error saving to storage (${key}):`, e);
+  }
+}
+
+function getFromStorage(key) {
+  try {
+    const recordStr = localStorage.getItem(key);
+    if (!recordStr) return null;
+    const record = JSON.parse(recordStr);
+    const now = Date.now();
+    
+    // Check expiration
+    if (now - record.timestamp > CONFIG.sessionExpiry) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    
+    return record.data;
+  } catch (e) {
+    console.warn(`Error reading from storage (${key}):`, e);
+    return null;
+  }
+}
+
+function persistSession() {
+  saveToStorage('catalogo_session', {
+    currentUser: state.currentUser,
+    cart: state.cart
+  });
+}
+
+function restoreSession() {
+  const saved = getFromStorage('catalogo_session');
+  if (saved) {
+    state.currentUser = saved.currentUser;
+    state.cart = saved.cart || [];
+    return true;
+  }
+  return false;
+}
 
 // ---- UTILS & SYNC ----
 
@@ -286,6 +338,15 @@ async function initData() {
   }
 
   navigateTo('login');
+  
+  // Restore session if available
+  if (restoreSession()) {
+    navigateTo('home');
+    updateCartBadge();
+  } else {
+    navigateTo('login');
+  }
+
   renderHeader();
   startPromoRotation();
 }
@@ -432,6 +493,7 @@ function handleLogin(e) {
   navigateTo('home');
   renderHeader();
   updateCartBadge();
+  persistSession();
 }
 
 function logout() {
@@ -443,6 +505,7 @@ function logout() {
   document.getElementById('login-id').value = '';
   if (promoInterval) { clearInterval(promoInterval); promoInterval = null; }
   if (state.paginationObserver) { state.paginationObserver.disconnect(); state.paginationObserver = null; }
+  localStorage.removeItem('catalogo_session');
   navigateTo('login');
 }
 
@@ -882,6 +945,7 @@ function addToCartFromDetail() {
 
   updateCartBadge();
   showToast(`${product.name} agregado al carrito`);
+  persistSession();
   navigateTo('home');
 }
 
@@ -911,6 +975,7 @@ function quickAddToCart(productId) {
 
   updateCartBadge();
   showToast(`${product.name} agregado al carrito`);
+  persistSession();
 }
 
 // ---- CART ----
@@ -987,12 +1052,14 @@ function changeCartQty(productId, delta) {
   item.qty = newQty;
   renderCart();
   updateCartBadge();
+  persistSession();
 }
 
 function removeFromCart(productId) {
   state.cart = state.cart.filter(i => i.productId !== productId);
   renderCart();
   updateCartBadge();
+  persistSession();
 }
 
 function clearCart() {
@@ -1000,6 +1067,7 @@ function clearCart() {
   state.cart = [];
   renderCart();
   updateCartBadge();
+  persistSession();
   showToast('Carrito vaciado');
 }
 
@@ -1179,6 +1247,7 @@ function sendOrder() {
   // Clear cart
   state.cart = [];
   updateCartBadge();
+  persistSession();
 }
 
 function generateVendorMessage(order) {
