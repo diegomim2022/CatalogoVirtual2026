@@ -1,12 +1,12 @@
 // Service Worker — Catálogo Digital de Pedidos
 const CACHE_NAME = 'catalogo-v1';
 const STATIC_ASSETS = [
-    '/',
-    '/index.html',
-    '/styles.css',
-    '/app.js',
-    '/LogoMas.png',
-    '/manifest.json'
+    './',
+    'index.html',
+    'styles.css',
+    'app.js',
+    'LogoMas.png',
+    'manifest.json'
 ];
 
 // Install: cache static assets
