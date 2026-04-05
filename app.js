@@ -80,11 +80,12 @@ const CATEGORY_ICONS_MAP = {
   'ropa': '👕', 'vestidor': '👗', 'camisa': '👔', 'pantalon': '👖',
   'zapato': '👟', 'calzado': '👞', 'tenis': '👟',
   'bolso': '👜', 'maleta': '💼', 'morral': '🎒',
-  'reloj': '⌚', 'joya': '💍', 'accesorio': '👓',
+  'reloj': '⌚', 'watch': '⌚', 'joya': '💍', 'accesorio': '👓',
   'audio': '🎧', 'sonido': '🔊', 'parlante': '📻', 'audifono': '🎧',
   'hogar': '🏠', 'casa': '🏡', 'cocina': '🍳', 'mueble': '🛋️',
   'belleza': '💄', 'maquillaje': '💅', 'perfume': '✨', 'cuidado': '🧴',
   'tecnologia': '💻', 'celular': '📱', 'computador': '💻', 'electronica': '🔌',
+  'tablet': '📱', 'ipad': '📱',
   'deporte': '⚽', 'gym': '🏋️', 'entrenamiento': '🚴',
   'juguete': '🧸', 'niño': '👶', 'bebe': '🍼',
   'mascota': '🐶', 'perro': '🐱', 'alimento': '🦴',
@@ -93,7 +94,11 @@ const CATEGORY_ICONS_MAP = {
   'salud': '💊', 'medicina': '🩺', 'bienestar': '🧘',
   'comida': '🍔', 'bebida': '🥤', 'snack': '🍿',
   'carro': '🚗', 'moto': '🏍️', 'vehiculo': '🚜',
-  'cable': '🔌', 'power': '⚡', 'energia': '🔋'
+  'cable': '🔌', 'power': '⚡', 'energia': '🔋',
+  'adaptador': '🔌', 'cargador': '🔌', 'plug': '🔌',
+  'gamer': '🎮', 'juego': '🎮', 'consola': '🎮',
+  'nanocarbon': '🛡️', 'protector': '🛡️', 'vidrio': '💎',
+  'gadget': '⚙️', 'gatget': '⚙️', 'herramienta': '🛠️'
 };
 
 function getAutoIcon(categoryName) {
