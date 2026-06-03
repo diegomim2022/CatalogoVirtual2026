@@ -786,6 +786,21 @@ function openProduct(productId) {
     Analytics.trackProductView(state.currentUser.id, state.selectedProduct.id, state.selectedProduct.name);
   }
 
+  // Filtrar automáticamente por la categoría del producto seleccionado
+  if (state.selectedProduct) {
+    state.selectedCategory = state.selectedProduct.category;
+    
+    // Limpiar filtro de búsqueda por texto para mostrar la categoría completa
+    state.searchQuery = '';
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+      searchInput.value = '';
+    }
+    
+    // Refrescar la vista del catálogo
+    renderCatalog();
+  }
+
   navigateTo('detail');
 }
 
