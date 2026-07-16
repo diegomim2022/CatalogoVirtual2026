@@ -315,7 +315,7 @@ async function initData() {
 
   if (sheetProducts && sheetProducts.length > 0) {
     PRODUCTS = sheetProducts
-      .filter(p => p.idproducto || p['ID Producto'] || p.id)
+      .filter(p => p.idproducto || p['ID Producto'] || p.id || p[''])
       .map(p => {
         const getV = (k) => {
           const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
@@ -323,7 +323,7 @@ async function initData() {
         };
 
         return {
-          id: getV('ID Producto'),
+          id: getV('ID Producto') || p[''] || '',
           photo: transformDriveUrl(getV('Foto')) || IMG_PLACEHOLDER,
           photos: [getV('Foto'), getV('Foto2'), getV('Foto3'), getV('Foto4')].map(url => transformDriveUrl(url)).filter(f => f && f.trim() !== ''),
           reference: getV('Referencia') || '',
