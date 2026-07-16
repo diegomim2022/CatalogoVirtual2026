@@ -189,7 +189,7 @@ function restoreSession() {
 
 async function fetchSheetData(gid) {
   // Check sessionStorage cache first
-  const cacheKey = `sheet_cache_${gid}`;
+  const cacheKey = `sheet_cache_${gid}_v2`;
   const cacheTimeKey = `sheet_cache_time_${gid}`;
   try {
     const cached = sessionStorage.getItem(cacheKey);
