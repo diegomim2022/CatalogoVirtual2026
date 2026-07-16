@@ -281,7 +281,11 @@ function parseCSV(csv) {
   if (curRow.length > 0 || curVal) { curRow.push(curVal.trim()); rows.push(curRow); }
 
   const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
-  const rawHeaders = rows[0].map(h => h.replace(/^\uFEFF/, '').replace(/^"|"$/g, '').trim());
+  const rawHeaders = rows[0].map((h, i) => {
+    let header = h.replace(/^\uFEFF/, '').replace(/^"|"$/g, '').trim();
+    if (header === '' && i === 0) header = 'ID Producto';
+    return header;
+  });
   const normHeaders = rawHeaders.map(norm);
 
   return rows.slice(1).map(row => {
