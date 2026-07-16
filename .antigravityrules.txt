@@ -1,0 +1,29 @@
+
+[REGLAS GENERALES DE DESARROLLO - EVITAR REGRESIONES Y DESFASE DE DATOS]
+
+1. PRESERVACIÓN DEL HISTORIAL Y CÓDIGO EXISTENTE (NO REGRESIONES):
+   - Queda estrictamente prohibido eliminar, alterar o simplificar funciones auxiliares, validaciones de campos, o lógicas de mapeo de datos existentes a menos que se solicite de forma explícita.
+   - Antes de modificar cualquier archivo, analiza el impacto de tu cambio en las demás vistas y procesos para garantizar que no se rompan funcionalidades colaterales (por ejemplo, asegurar que un cambio en la base de datos no oculte los botones de acción como ver, editar, anular o imprimir).
+
+2. VERIFICACIÓN DE VARIABLES Y CONTEXTO GLOBAL:
+   - Toda integración con el historial importado de Alegra debe validar primero la existencia y estructura del objeto en memoria "window.ALEGRA_SYNC_DATA".
+   - Antes de asumir que un dato no existe en el sistema, verifica si está cargado en esta variable global para evitar consultas fallidas o re-creaciones redundantes.
+
+3. FUENTE ÚNICA DE VERDAD Y SINCRONIZACIÓN IDEMPOTENTE:
+   - El estado financiero global debe ser consistente en todos los dispositivos. Toda escritura o actualización local (IndexedDB) debe propagarse inmediatamente a Firebase y viceversa.
+   - Cualquier inserción o modificación de documentos (facturas, cotizaciones, recibos) o movimientos de banco debe utilizar IDs únicos deterministas generados antes de la transmisión de red, evitando duplicidad de registros en reintentos o fallos de conexión.
+
+4. CÓDIGO MINIMALISTA Y ENTREGAS EN FORMATO DIFF:
+   - Bajo ninguna circunstancia reescribas o generes archivos de código completos.
+   - Entrega única y exclusivamente las líneas exactas de código que deben ser insertadas, reemplazadas o eliminadas utilizando bloques de formato DIFF estándar de Git o indicando con absoluta precisión las líneas de código afectadas.
+
+5. TRABAJO EN FRÍO Y EFICIENCIA DE TOKENS:
+   - No inicies simulaciones de navegador, pruebas dinámicas automatizadas ni ejecuciones en entornos virtuales (sandboxes) a menos que se te indique explícitamente.
+   - Sé directo, técnico y elimina cualquier saludo, teoría innecesaria o resúmenes finales redundantes para maximizar el ahorro de créditos en cada interacción.
+
+6. PRIORIDAD DE PROCESAMIENTO LOCAL (SHELL & SCRIPTS EXTERNOS):
+   - Siempre que se requiera procesar, migrar o descargar grandes volúmenes de datos (como el historial completo de Alegra, sincronizaciones masivas o limpiezas de base de datos), prioriza la generación de scripts automatizados de ejecución local (ej. PowerShell, Node.js) en la computadora del usuario.
+   - Queda prohibido intentar procesar o parsear payloads de datos de más de 50 KB directamente en el chat de la IA. Esto previene el desperdicio innecesario de créditos de contexto y garantiza que el procesamiento pesado se realice de manera óptima en la máquina local.
+
+7. PARSEO DE GOOGLE SHEETS (CSV):
+   - Al parsear los datos CSV de Google Sheets en la aplicación (ej. app.js), asegúrate siempre de forzar la clave 'ID Producto' al primer encabezado si éste viene vacío. Esto es crucial para prevenir colisiones con otras posibles columnas vacías al final de la hoja y evitar que los productos dejen de renderizarse en el catálogo.
