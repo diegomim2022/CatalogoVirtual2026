@@ -1403,25 +1403,25 @@ function sendOrder() {
 }
 
 function generateVendorMessage(order) {
+  const totalQty = order.items.reduce((sum, item) => sum + item.qty, 0);
+
   let msg = `📦 *PEDIDO # ${order.id}*\n`;
   msg += `━━━━━━━━━━━━━━\n`;
-  msg += `👤 Cliente: ${order.clientName} (${order.clientId})\n`;
-  msg += `📅 Fecha: ${formatDate(order.date)}\n`;
-  msg += `📞 Tel: ${order.clientPhone}\n`;
-  msg += `💼 Tipo: ${order.clientType}\n\n`;
-  msg += `🛒 *DETALLES DEL PEDIDO:*\n`;
+  msg += `👤 ${order.clientName} (${order.clientId})\n`;
+  msg += `📅 ${formatDate(order.date)}\n`;
+  msg += `📞 ${order.clientPhone}\n`;
+  msg += `💼 ${order.clientType}\n`;
+  msg += `━━━━━━━━━━━━━━\n`;
+  msg += `*PRODUCTOS (${totalQty} uds):*\n\n`;
 
-  let totalQty = 0;
-  order.items.forEach(item => {
-    msg += `• ${item.name} (${item.reference}) x${item.qty}: ${formatCurrency(item.price)} - Sub: ${formatCurrency(item.subtotal)}\n`;
-    totalQty += item.qty;
+  order.items.forEach((item, i) => {
+    msg += `${i + 1}. ${item.name} (${item.reference})\n`;
+    msg += `    ${item.qty} x ${formatCurrency(item.price)} = ${formatCurrency(item.subtotal)}\n\n`;
   });
 
   msg += `━━━━━━━━━━━━━━\n`;
-  msg += `📦 *Total de productos:* ${totalQty}\n`;
   msg += `💰 *TOTAL A PAGAR: ${formatCurrency(order.total)}*\n`;
-  msg += `📋 Estado: Pendiente\n`;
-  msg += `━━━━━━━━━━━━━━`;
+  msg += `📋 Estado: Pendiente`;
 
   return msg;
 }
