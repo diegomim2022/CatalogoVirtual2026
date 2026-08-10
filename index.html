@@ -350,6 +350,7 @@
                   <th>Producto</th>
                   <th>Vistas</th>
                   <th>Clientes</th>
+                  <th>Acción</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -357,6 +358,18 @@
           </div>
           <div id="analytics-no-products" class="analytics-empty" style="display:none;">
             <span>📭</span> Aún no hay datos de productos
+          </div>
+        </div>
+
+        <!-- Promocionar Producto del Día -->
+        <div class="analytics-section" id="promo-generator-section" style="display:none;">
+          <h3>📢 Promocionar Producto del Día</h3>
+          <div class="promo-generator-card" style="background: var(--bg-card); padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+            <textarea id="promo-message-text" rows="9" style="width:100%; border-radius:8px; padding:12px; border:1px solid var(--border); background: var(--bg-body); color: var(--text-main); font-family:inherit; resize:vertical; margin-bottom: 12px; outline: none; font-size: 14px; line-height: 1.5;"></textarea>
+            <div style="display:flex; gap:10px;">
+              <button class="btn btn-secondary" onclick="copyPromoMessage()" style="flex:1;">📋 Copiar mensaje</button>
+              <button class="btn btn-success" onclick="sendPromoWhatsApp()" style="flex:1; background: #25D366; border-color: #25D366; color: white;">📲 Enviar por WhatsApp</button>
+            </div>
           </div>
         </div>
 
@@ -471,9 +484,9 @@
     }
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="analytics.js"></script>
-  <script src="app.js?v=2.4"></script>
-  <script src="nano.js?v=2.3"></script>
+  <script src="analytics.js?v=2.5"></script>
+  <script src="app.js?v=2.5"></script>
+  <script src="nano.js?v=2.5"></script>
 </body>
 
 </html>

@@ -141,10 +141,14 @@ const Analytics = (() => {
         };
       }
       clientMap[a.clientId].totalAccesses++;
-      const ts = new Date(a.timestamp);
-      if (!clientMap[a.clientId].lastAccess || ts > clientMap[a.clientId].lastAccess) {
-        clientMap[a.clientId].lastAccess = ts;
-        clientMap[a.clientId].clientName = a.clientName;
+      if (a.timestamp) {
+        const ts = new Date(a.timestamp);
+        if (!isNaN(ts.getTime())) {
+          if (!clientMap[a.clientId].lastAccess || ts > clientMap[a.clientId].lastAccess) {
+            clientMap[a.clientId].lastAccess = ts;
+            clientMap[a.clientId].clientName = a.clientName;
+          }
+        }
       }
     });
 
@@ -172,7 +176,7 @@ const Analytics = (() => {
         totalAccesses: c.totalAccesses,
         productsViewed: c.productsViewed,
         uniqueProducts: c.uniqueProducts.size,
-        lastAccess: c.lastAccess ? c.lastAccess.toISOString() : null
+        lastAccess: (c.lastAccess && !isNaN(c.lastAccess.getTime())) ? c.lastAccess.toISOString() : null
       }))
       .sort((a, b) => {
         const scoreA = a.totalAccesses * 2 + a.productsViewed;

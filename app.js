@@ -376,7 +376,16 @@ async function initData() {
 
   // Restore session if available
   if (restoreSession()) {
-    navigateTo('home');
+    const urlParams = new URLSearchParams(window.location.search);
+    const prodId = urlParams.get('producto');
+    const productExists = PRODUCTS.some(p => p.id === prodId);
+
+    if (prodId && productExists) {
+      openProduct(prodId);
+    } else {
+      navigateTo('home');
+    }
+
     updateCartBadge();
     // Restaurar visibilidad de pestaña Nanocarbon
     const nanoBtn = document.getElementById('nav-btn-nano');
@@ -419,13 +428,19 @@ function generateOrderId() {
 }
 
 function formatDate(date) {
-  return new Date(date).toLocaleDateString('es-CO', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch(e) {
+    return '—';
+  }
 }
 
 function getProductPrice(product) {
@@ -531,7 +546,16 @@ function handleLogin(e) {
     Analytics.trackAccess(state.currentUser.id, state.currentUser.name);
   }
 
-  navigateTo('home');
+  const urlParams = new URLSearchParams(window.location.search);
+  const prodId = urlParams.get('producto');
+  const productExists = PRODUCTS.some(p => p.id === prodId);
+
+  if (prodId && productExists) {
+    openProduct(prodId);
+  } else {
+    navigateTo('home');
+  }
+
   renderHeader();
   updateCartBadge();
   persistSession();
@@ -1631,65 +1655,76 @@ function renderAnalyticsData() {
   }
 
   // Client Ranking
-  const ranking = Analytics.getClientRanking();
-  const rankingTable = document.getElementById('analytics-client-ranking');
-  const rankingBody = rankingTable.querySelector('tbody');
-  const noClients = document.getElementById('analytics-no-clients');
+  try {
+    const ranking = Analytics.getClientRanking();
+    const rankingTable = document.getElementById('analytics-client-ranking');
+    const rankingBody = rankingTable.querySelector('tbody');
+    const noClients = document.getElementById('analytics-no-clients');
 
-  if (ranking.length > 0) {
-    rankingTable.style.display = 'table';
-    noClients.style.display = 'none';
-    rankingBody.innerHTML = ranking.map((c, i) => {
-      const rankClass = i < 3 ? ` top-${i + 1}` : '';
-      const lastAccess = c.lastAccess ? formatDate(c.lastAccess) : '—';
-      return `
-        <tr>
-          <td><span class="rank-badge${rankClass}">${i + 1}</span></td>
-          <td>
-            <span class="client-name">${escapeHtml(c.clientName)}</span>
-            <span class="client-id">ID: ${escapeHtml(c.clientId)}</span>
-          </td>
-          <td><strong>${c.totalAccesses}</strong></td>
-          <td>${c.productsViewed}</td>
-          <td style="font-size:11px;color:var(--text-secondary);">${lastAccess}</td>
-        </tr>
-      `;
-    }).join('');
-  } else {
-    rankingTable.style.display = 'none';
-    noClients.style.display = 'block';
+    if (ranking.length > 0) {
+      rankingTable.style.display = 'table';
+      noClients.style.display = 'none';
+      rankingBody.innerHTML = ranking.map((c, i) => {
+        const rankClass = i < 3 ? ` top-${i + 1}` : '';
+        const lastAccess = c.lastAccess ? formatDate(c.lastAccess) : '—';
+        return `
+          <tr>
+            <td><span class="rank-badge${rankClass}">${i + 1}</span></td>
+            <td>
+              <span class="client-name">${escapeHtml(c.clientName)}</span>
+              <span class="client-id">ID: ${escapeHtml(c.clientId)}</span>
+            </td>
+            <td><strong>${c.totalAccesses}</strong></td>
+            <td>${c.productsViewed}</td>
+            <td style="font-size:11px;color:var(--text-secondary);">${lastAccess}</td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      rankingTable.style.display = 'none';
+      noClients.style.display = 'block';
+    }
+  } catch (err) {
+    console.error('Error rendering Client Ranking:', err);
   }
 
   // Top Products
-  const topProducts = Analytics.getTopProducts(10);
-  const productsTable = document.getElementById('analytics-top-products');
-  const productsBody = productsTable.querySelector('tbody');
-  const noProducts = document.getElementById('analytics-no-products');
+  try {
+    const topProducts = Analytics.getTopProducts(10);
+    const productsTable = document.getElementById('analytics-top-products');
+    const productsBody = productsTable.querySelector('tbody');
+    const noProducts = document.getElementById('analytics-no-products');
 
-  if (topProducts.length > 0) {
-    productsTable.style.display = 'table';
-    noProducts.style.display = 'none';
-    const maxViews = topProducts[0].totalViews;
-    productsBody.innerHTML = topProducts.map((p, i) => {
-      const rankClass = i < 3 ? ` top-${i + 1}` : '';
-      const barWidth = Math.round((p.totalViews / maxViews) * 60);
-      return `
-        <tr>
-          <td><span class="rank-badge${rankClass}">${i + 1}</span></td>
-          <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.productName)}</td>
-          <td>
-            <div class="views-bar">
-              <span>${p.totalViews}</span>
-              <div class="views-bar-fill" style="width:${barWidth}px"></div>
-            </div>
-          </td>
-          <td>${p.uniqueClients}</td>
-        </tr>
-      `;
-    }).join('');
-  } else {
-    productsTable.style.display = 'none';
-    noProducts.style.display = 'block';
+    if (topProducts.length > 0) {
+      productsTable.style.display = 'table';
+      noProducts.style.display = 'none';
+      const maxViews = topProducts[0].totalViews;
+      productsBody.innerHTML = topProducts.map((p, i) => {
+        const rankClass = i < 3 ? ` top-${i + 1}` : '';
+        const barWidth = Math.round((p.totalViews / maxViews) * 60);
+        return `
+          <tr>
+            <td><span class="rank-badge${rankClass}">${i + 1}</span></td>
+            <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.productName)}</td>
+            <td>
+              <div class="views-bar">
+                <span>${p.totalViews}</span>
+                <div class="views-bar-fill" style="width:${barWidth}px"></div>
+              </div>
+            </td>
+            <td>${p.uniqueClients}</td>
+            <td>
+              <button class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; background: var(--accent); color: white; border-radius: 4px; border: none; cursor: pointer;" onclick="generatePromoMessage('${escapeHtml(p.productId)}')">📢 Promocionar</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      productsTable.style.display = 'none';
+      noProducts.style.display = 'block';
+    }
+  } catch (err) {
+    console.error('Error rendering Top Products:', err);
   }
 
   // Daily Chart
@@ -1767,4 +1802,49 @@ function renderDailyChart() {
       }
     }
   });
+}
+
+// ---- PROMO GENERATOR ----
+function generatePromoMessage(productId) {
+  const product = PRODUCTS.find(p => p.id === productId);
+  if (!product) {
+    showToast('Producto no encontrado', 'error');
+    return;
+  }
+
+  const price = formatCurrency(product.retailPrice);
+  
+  let msg = `🔥 *¡PRODUCTO DEL DÍA!* 🔥\n`;
+  msg += `━━━━━━━━━━━━━━\n`;
+  msg += `✨ *${product.name}*\n`;
+  msg += `🏷️ Ref: ${product.reference}\n`;
+  msg += `💰 Precio Especial: ${price}\n\n`;
+  msg += `¡Aprovecha antes de que se agote! 🏃‍♂️💨\n`;
+  msg += `━━━━━━━━━━━━━━\n`;
+  msg += `👇 *Míralo y pídelo aquí mismo:*\n`;
+  
+  // Create direct link
+  const urlObj = new URL(window.location.href);
+  urlObj.searchParams.set('producto', product.id);
+  msg += urlObj.toString();
+  
+  document.getElementById('promo-message-text').value = msg;
+  const section = document.getElementById('promo-generator-section');
+  section.style.display = 'block';
+  
+  // Scroll to section
+  section.scrollIntoView({ behavior: 'smooth' });
+}
+
+function copyPromoMessage() {
+  const textarea = document.getElementById('promo-message-text');
+  textarea.select();
+  document.execCommand('copy');
+  showToast('Mensaje copiado al portapapeles');
+}
+
+function sendPromoWhatsApp() {
+  const msg = document.getElementById('promo-message-text').value;
+  if (!msg) return;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 }
