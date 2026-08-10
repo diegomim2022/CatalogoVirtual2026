@@ -156,3 +156,204 @@ function jsonResponse(obj) {
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+// ==========================================
+// AUTOMATIZACIÓN DE CORREO DE SEGUIMIENTO
+// ==========================================
+
+function sendDailyFollowUpEmail() {
+  const EMAIL_TO = 'mauricio.izquierdo@hotmail.com';
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  
+  // 1. Obtener accesos y vistas de las últimas 24h
+  const accesses = JSON.parse(getAccesses().getContent()).data;
+  const views = JSON.parse(getProductViews().getContent()).data;
+  
+  const recentAccesses = accesses.filter(a => new Date(a.timestamp) >= cutoff);
+  const recentViews = views.filter(v => new Date(v.timestamp) >= cutoff);
+  
+  // 2. Calcular estadísticas por cliente
+  const clientStats = {};
+  
+  recentAccesses.forEach(a => {
+    if (!clientStats[a.clientId]) {
+      clientStats[a.clientId] = { id: a.clientId, name: a.clientName, accesses: 0, views: 0, products: {} };
+    }
+    clientStats[a.clientId].accesses++;
+    clientStats[a.clientId].name = a.clientName; // Actualizar nombre
+  });
+  
+  recentViews.forEach(v => {
+    if (!clientStats[v.clientId]) {
+      clientStats[v.clientId] = { id: v.clientId, name: 'Cliente ' + v.clientId, accesses: 0, views: 0, products: {} };
+    }
+    clientStats[v.clientId].views++;
+    if (!clientStats[v.clientId].products[v.productId]) {
+      clientStats[v.clientId].products[v.productId] = 0;
+    }
+    clientStats[v.clientId].products[v.productId]++;
+  });
+  
+  // 3. Filtrar clientes interesados (>= 3 accesos o >= 5 vistas de productos)
+  const interestedClients = Object.values(clientStats).filter(c => c.accesses >= 3 || Object.keys(c.products).length >= 5);
+  
+  let emailHtml = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">`;
+  emailHtml += `<h2 style="color: #e94560;">📋 Seguimiento del día</h2>`;
+  
+  // Obtener datos de hoja de clientes para WhatsApp
+  const clientsData = getClientsData();
+  
+  if (interestedClients.length > 0) {
+    emailHtml += `<p>Hoy tienes <strong>${interestedClients.length}</strong> clientes muy interesados según su actividad de ayer:</p>`;
+    
+    interestedClients.forEach(c => {
+      // Encontrar el producto más visto
+      let topProductId = null;
+      let maxViews = 0;
+      for (const [pId, pViews] of Object.entries(c.products)) {
+        if (pViews > maxViews) {
+          maxViews = pViews;
+          topProductId = pId;
+        }
+      }
+      
+      const phone = clientsData[c.id] || '';
+      let actionHtml = '';
+      let productInfo = 'Varios productos visitados.';
+      
+      if (topProductId) {
+        const prod = getProductDetails(topProductId);
+        if (prod) {
+          productInfo = `Producto más visto: <strong>${prod.name}</strong> (Ref: ${prod.reference})`;
+          const msg = generateWhatsAppMessage(c.name, prod);
+          if (phone) {
+            actionHtml = `<a href="https://wa.me/${phone}?text=${msg}" style="display: inline-block; background: #25D366; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px;">📲 Enviar WhatsApp</a>`;
+          } else {
+            actionHtml = `<p style="color: #999; font-size: 12px;">(No hay teléfono registrado para el ID ${c.id})</p>`;
+          }
+        }
+      }
+      
+      emailHtml += `
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #0f3460;">
+          <h3 style="margin-top: 0; margin-bottom: 5px;">👤 ${c.name} (ID: ${c.id})</h3>
+          <p style="margin: 5px 0; color: #555;">Accesos: ${c.accesses} | Vistas: ${c.views}</p>
+          <p style="margin: 5px 0;">${productInfo}</p>
+          ${actionHtml}
+        </div>
+      `;
+    });
+  } else {
+    emailHtml += `<p>No hubo clientes con alertas altas en las últimas 24 horas.</p>`;
+    
+    // Obtener el producto top 1 de todos
+    const allProducts = {};
+    recentViews.forEach(v => {
+      if (!allProducts[v.productId]) allProducts[v.productId] = 0;
+      allProducts[v.productId]++;
+    });
+    
+    let topProductId = null;
+    let maxViews = 0;
+    for (const [pId, pViews] of Object.entries(allProducts)) {
+      if (pViews > maxViews) {
+        maxViews = pViews;
+        topProductId = pId;
+      }
+    }
+    
+    if (topProductId) {
+      const prod = getProductDetails(topProductId);
+      if (prod) {
+        emailHtml += `
+          <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin-top: 20px;">
+            <h3 style="margin-top: 0;">🔥 Producto más popular de ayer</h3>
+            <p><strong>${prod.name}</strong> (Ref: ${prod.reference})</p>
+            <p>Puedes promocionarlo en tus estados o grupos.</p>
+          </div>
+        `;
+      }
+    }
+  }
+  
+  emailHtml += `</div>`;
+  
+  // Enviar correo
+  MailApp.sendEmail({
+    to: EMAIL_TO,
+    subject: `📋 Seguimiento del día - ${interestedClients.length} clientes interesados`,
+    htmlBody: emailHtml
+  });
+}
+
+function getClientsData() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheets = ss.getSheets();
+  const clientSheet = sheets.find(s => s.getSheetId() === 1788392842);
+  if (!clientSheet) return {};
+  
+  const data = clientSheet.getDataRange().getValues();
+  if (data.length === 0) return {};
+  
+  const headers = data[0];
+  const idIdx = headers.indexOf('Identificacion');
+  const phoneIdx = headers.indexOf('Telefono WhatsApp');
+  
+  const clients = {};
+  if (idIdx === -1) return clients;
+  
+  for (let i = 1; i < data.length; i++) {
+    const id = String(data[i][idIdx]).trim();
+    if (id) {
+      let phone = phoneIdx !== -1 ? String(data[i][phoneIdx] || '').trim() : '';
+      if (phone && !phone.startsWith('57')) phone = '57' + phone; // Asumir Colombia
+      clients[id] = phone.replace(/\D/g, ''); // Remover caracteres no numéricos
+    }
+  }
+  return clients;
+}
+
+function getProductDetails(productId) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const productSheet = ss.getSheets().find(s => s.getSheetId() === 0);
+  if (!productSheet) return null;
+  
+  const data = productSheet.getDataRange().getValues();
+  if (data.length === 0) return null;
+  
+  const headers = data[0];
+  const refIdx = headers.indexOf('Referencia');
+  let nameIdx = headers.indexOf('Articulo');
+  if (nameIdx === -1) nameIdx = headers.indexOf('Nombre');
+  let priceIdx = headers.indexOf('Precio Detal');
+  if (priceIdx === -1) priceIdx = headers.indexOf('Precio de venta');
+  
+  if (refIdx === -1) return null;
+  
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][refIdx]).trim() === productId) {
+      return {
+        reference: data[i][refIdx],
+        name: nameIdx !== -1 ? data[i][nameIdx] : 'Producto',
+        price: priceIdx !== -1 ? data[i][priceIdx] : 0
+      };
+    }
+  }
+  return null;
+}
+
+function generateWhatsAppMessage(clientName, productObj) {
+  // Formatear precio
+  const price = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(productObj.price);
+  
+  let msg = `Hola ${clientName}, notamos que te interesó este producto:\n\n`;
+  msg += `🔥 *¡PRODUCTO RECOMENDADO!* 🔥\n`;
+  msg += `━━━━━━━━━━━━━━\n`;
+  msg += `✨ *${productObj.name}*\n`;
+  msg += `🏷️ Ref: ${productObj.reference}\n`;
+  msg += `💰 Precio: ${price}\n\n`;
+  msg += `👇 *Míralo y pídelo aquí mismo:*\n`;
+  msg += `https://diegomim2022.github.io/CatalogoVirtual2026/?producto=${productObj.reference}`;
+  
+  return encodeURIComponent(msg);
+}
