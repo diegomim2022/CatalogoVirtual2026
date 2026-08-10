@@ -1814,14 +1814,15 @@ function generatePromoMessage(productId) {
 
   const price = formatCurrency(product.retailPrice);
   
-  let msg = `🔥 *¡PRODUCTO DEL DÍA!* 🔥\n`;
-  msg += `━━━━━━━━━━━━━━\n`;
-  msg += `✨ *${product.name}*\n`;
-  msg += `🏷️ Ref: ${product.reference}\n`;
-  msg += `💰 Precio Especial: ${price}\n\n`;
-  msg += `¡Aprovecha antes de que se agote! 🏃‍♂️💨\n`;
-  msg += `━━━━━━━━━━━━━━\n`;
-  msg += `👇 *Míralo y pídelo aquí mismo:*\n`;
+  let msg = `\uD83D\uDD25 *\u00A1PRODUCTO DEL D\u00CDA!*\ \uD83D\uDD25\n`;
+  msg += `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n`;
+  msg += `\u2728 *${product.name}*\n`;
+  msg += `\uD83C\uDFF7\uFE0F Ref: ${product.reference}\n`;
+  msg += `\uD83D\uDCB0 Precio Especial: ${price}\n\n`;
+  msg += `\u00A1Aprovecha antes de que se agote! \uD83C\uDFC3\u200D\u2642\uFE0F\uD83D\uDCA8\n`;
+  msg += `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n`;
+  msg += `\uD83D\uDCF8 Toca el link para ver la foto y m\u00E1s detalles:\n`;
+  msg += `\uD83D\uDC47 *M\u00EDralo y p\u00EDdelo aqu\u00ED mismo:*\n`;
   
   // Create direct link
   const urlObj = new URL(window.location.href);

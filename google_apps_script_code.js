@@ -198,7 +198,7 @@ function sendDailyFollowUpEmail() {
   const interestedClients = Object.values(clientStats).filter(c => c.accesses >= 3 || Object.keys(c.products).length >= 5);
   
   let emailHtml = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">`;
-  emailHtml += `<h2 style="color: #e94560;">📋 Seguimiento del día</h2>`;
+  emailHtml += `<h2 style="color: #e94560;">\uD83D\uDCCB Seguimiento del d\u00EDa</h2>`;
   
   // Obtener datos de hoja de clientes para WhatsApp
   const clientsData = getClientsData();
@@ -248,16 +248,16 @@ function sendDailyFollowUpEmail() {
           productInfo = `Producto más visto: <strong>${prod.name}</strong> (Ref: ${prod.reference})`;
           const msg = generateWhatsAppMessage(c.name, prod);
           if (phone) {
-            actionHtml = `<a href="https://wa.me/${phone}?text=${msg}" style="display: inline-block; background: #25D366; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px;">📲 Enviar WhatsApp</a>`;
+            actionHtml = `<a href="https://wa.me/${phone}?text=${msg}" style="display: inline-block; background: #25D366; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px;">\uD83D\uDCF2 Enviar WhatsApp</a>`;
           } else {
-            actionHtml = `<p style="color: #999; font-size: 12px;">(No hay teléfono registrado para el ID ${c.id})</p>`;
+            actionHtml = `<p style="color: #999; font-size: 12px;">(No hay tel\u00E9fono registrado para el ID ${c.id})</p>`;
           }
         }
       }
       
       emailHtml += `
         <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #0f3460;">
-          <h3 style="margin-top: 0; margin-bottom: 5px;">👤 ${c.name} (ID: ${c.id})</h3>
+          <h3 style="margin-top: 0; margin-bottom: 5px;">\uD83D\uDC64 ${c.name} (ID: ${c.id})</h3>
           <p style="margin: 5px 0; color: #555;">Accesos: ${c.accesses} | Vistas: ${c.views}</p>
           <p style="margin: 5px 0;">${productInfo}</p>
           ${actionHtml}
@@ -280,14 +280,14 @@ function sendDailyFollowUpEmail() {
         const msg = generateGenericWhatsAppMessage(client.name, topProductObj);
         let actionHtml = '';
         if (client.phone) {
-          actionHtml = `<a href="https://wa.me/${client.phone}?text=${msg}" style="display: inline-block; background: #00a8cc; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px;">📲 Enviar Promo a ${client.name}</a>`;
+          actionHtml = `<a href="https://wa.me/${client.phone}?text=${msg}" style="display: inline-block; background: #00a8cc; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px;">\uD83D\uDCF2 Enviar Promo a ${client.name}</a>`;
         } else {
-          actionHtml = `<p style="color: #999; font-size: 12px;">(No hay teléfono registrado para el ID ${id})</p>`;
+          actionHtml = `<p style="color: #999; font-size: 12px;">(No hay tel\u00E9fono registrado para el ID ${id})</p>`;
         }
         
         inactiveClientsHtml += `
           <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #00a8cc;">
-            <h3 style="margin-top: 0; margin-bottom: 5px;">👤 ${client.name} (ID: ${id})</h3>
+            <h3 style="margin-top: 0; margin-bottom: 5px;">\uD83D\uDC64 ${client.name} (ID: ${id})</h3>
             <p style="margin: 5px 0;">No tuvo actividad ayer. Producto recomendado: <strong>${topProductObj.name}</strong></p>
             ${actionHtml}
           </div>
@@ -307,7 +307,7 @@ function sendDailyFollowUpEmail() {
   // Enviar correo
   MailApp.sendEmail({
     to: EMAIL_TO,
-    subject: `📋 Seguimiento del día - ${interestedClients.length} interesados, ${inactiveCount} inactivos`,
+    subject: `\uD83D\uDCCB Seguimiento del d\u00EDa - ${interestedClients.length} interesados, ${inactiveCount} inactivos`,
     htmlBody: emailHtml
   });
 }
@@ -378,13 +378,14 @@ function generateWhatsAppMessage(clientName, productObj) {
   // Formatear precio
   const price = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(productObj.price);
   
-  let msg = `Hola ${clientName}, notamos que te interesó este producto:\n\n`;
-  msg += `🔥 *¡PRODUCTO RECOMENDADO!* 🔥\n`;
-  msg += `━━━━━━━━━━━━━━\n`;
-  msg += `✨ *${productObj.name}*\n`;
-  msg += `🏷️ Ref: ${productObj.reference}\n`;
-  msg += `💰 Precio: ${price}\n\n`;
-  msg += `👇 *Míralo y pídelo aquí mismo:*\n`;
+  let msg = `Hola ${clientName}, notamos que te interes\u00F3 este producto:\n\n`;
+  msg += `\uD83D\uDD25 *\u00A1PRODUCTO RECOMENDADO!*\ \uD83D\uDD25\n`;
+  msg += `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n`;
+  msg += `\u2728 *${productObj.name}*\n`;
+  msg += `\uD83C\uDFF7\uFE0F Ref: ${productObj.reference}\n`;
+  msg += `\uD83D\uDCB0 Precio: ${price}\n\n`;
+  msg += `\uD83D\uDCF8 Toca el link para ver la foto y m\u00E1s detalles:\n`;
+  msg += `\uD83D\uDC47 *M\u00EDralo y p\u00EDdelo aqu\u00ED mismo:*\n`;
   msg += `https://diegomim2022.github.io/CatalogoVirtual2026/?producto=${productObj.reference}`;
   
   return encodeURIComponent(msg);
@@ -394,13 +395,14 @@ function generateGenericWhatsAppMessage(clientName, productObj) {
   // Formatear precio
   const price = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(productObj.price);
   
-  let msg = `Hola ${clientName}, tenemos una excelente recomendación para ti:\n\n`;
-  msg += `🔥 *¡PRODUCTO DEL DÍA!* 🔥\n`;
-  msg += `━━━━━━━━━━━━━━\n`;
-  msg += `✨ *${productObj.name}*\n`;
-  msg += `🏷️ Ref: ${productObj.reference}\n`;
-  msg += `💰 Precio: ${price}\n\n`;
-  msg += `👇 *Míralo y pídelo aquí mismo:*\n`;
+  let msg = `Hola ${clientName}, tenemos una excelente recomendaci\u00F3n para ti:\n\n`;
+  msg += `\uD83D\uDD25 *\u00A1PRODUCTO DEL D\u00CDA!*\ \uD83D\uDD25\n`;
+  msg += `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n`;
+  msg += `\u2728 *${productObj.name}*\n`;
+  msg += `\uD83C\uDFF7\uFE0F Ref: ${productObj.reference}\n`;
+  msg += `\uD83D\uDCB0 Precio: ${price}\n\n`;
+  msg += `\uD83D\uDCF8 Toca el link para ver la foto y m\u00E1s detalles:\n`;
+  msg += `\uD83D\uDC47 *M\u00EDralo y p\u00EDdelo aqu\u00ED mismo:*\n`;
   msg += `https://diegomim2022.github.io/CatalogoVirtual2026/?producto=${productObj.reference}`;
   
   return encodeURIComponent(msg);
