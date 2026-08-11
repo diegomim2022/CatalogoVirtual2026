@@ -2,34 +2,34 @@
    CATÁLOGO DIGITAL — DESIGN SYSTEM
    ============================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Manrope:wght@400;600;700;800&display=swap');
 
 /* --- CSS Custom Properties --- */
 :root {
-    --primary: #1a1a2e;
-    --primary-light: #16213e;
-    --accent: #e94560;
-    --accent-hover: #d63851;
-    --success: #00c853;
-    --success-bg: #e8f8ef;
-    --danger: #ff1744;
-    --danger-bg: #ffeaee;
-    --warning: #ff9100;
-    --warning-bg: #fff3e0;
+    --primary: #3B82F6;
+    --primary-light: #60A5FA;
+    --accent: #F43F5E;
+    --accent-hover: #E11D48;
+    --success: #25D366;
+    --success-bg: #E8F8EF;
+    --danger: #EF4444;
+    --danger-bg: #FEE2E2;
+    --warning: #F59E0B;
+    --warning-bg: #FEF3C7;
 
-    --bg: #f5f5f7;
-    --bg-card: #ffffff;
-    --bg-overlay: rgba(0, 0, 0, 0.45);
+    --bg: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --bg-overlay: rgba(15, 23, 42, 0.45);
     --bg-glass: rgba(255, 255, 255, 0.85);
 
-    --text-primary: #1a1a2e;
-    --text-secondary: #6b7280;
-    --text-tertiary: #9ca3af;
-    --text-white: #ffffff;
-    --text-price: #1a1a2e;
+    --text-primary: #0F172A;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --text-white: #FFFFFF;
+    --text-price: #0F172A;
 
-    --border: #e5e7eb;
-    --border-light: #f0f0f2;
+    --border: #E2E8F0;
+    --border-light: #F1F5F9;
 
     --radius-xs: 8px;
     --radius-sm: 12px;
@@ -38,17 +38,17 @@
     --radius-xl: 32px;
     --radius-full: 9999px;
 
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
-    --shadow-xl: 0 16px 50px rgba(0, 0, 0, 0.15);
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+    --shadow-lg: 0 10px 25px rgba(15, 23, 42, 0.08);
+    --shadow-xl: 0 20px 40px rgba(15, 23, 42, 0.1);
 
     --transition-fast: 0.15s ease;
     --transition-base: 0.25s ease;
     --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
     --nav-height: 72px;
-    --header-height: 60px;
+    --header-height: 69px;
 }
 
 /* Loading Overlay */
@@ -510,7 +510,13 @@ body {
    ============================ */
 .search-container {
     padding: 8px 20px 16px;
-    background: var(--bg-card);
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    position: sticky;
+    top: var(--header-height);
+    z-index: 90;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
 }
 
 .search-bar {
@@ -698,49 +704,44 @@ body {
 
 .category-chip {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    min-width: 72px;
+    min-width: max-content;
+    padding: 10px 18px;
+    background: var(--bg-card);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border);
     transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
 }
 
 .category-chip .cat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: var(--bg);
-    border: 2px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    transition: all var(--transition-fast);
+    font-size: 18px;
 }
 
-.category-chip.active .cat-icon,
-.category-chip:hover .cat-icon {
+.category-chip.active,
+.category-chip:hover {
     background: var(--primary);
     border-color: var(--primary);
-}
-
-.category-chip.active .cat-icon span,
-.category-chip:hover .cat-icon span {
-    filter: brightness(0) invert(1);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
 
 .category-chip .cat-label {
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--text-secondary);
-    text-align: center;
     white-space: nowrap;
 }
 
-.category-chip.active .cat-label {
-    color: var(--text-primary);
-    font-weight: 600;
+.category-chip.active .cat-label,
+.category-chip:hover .cat-label {
+    color: white;
 }
 
 /* ============================
@@ -785,11 +786,13 @@ body {
     cursor: pointer;
     position: relative;
     animation: slideUp 0.4s ease both;
+    border: 1px solid var(--border-light);
 }
 
 .product-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-4px);
+    border-color: transparent;
 }
 
 .product-card:nth-child(2) {
@@ -827,11 +830,11 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.4s ease;
+    transition: transform var(--transition-slow);
 }
 
 .product-card:hover .product-card-image img {
-    transform: scale(1.05);
+    transform: scale(1.08);
 }
 
 .product-card .fav-btn {
@@ -879,6 +882,35 @@ body {
     color: var(--danger);
 }
 
+.product-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    z-index: 2;
+    box-shadow: var(--shadow-sm);
+}
+
+.product-badge.oferta {
+    background: var(--accent);
+    color: white;
+}
+
+.product-badge.nuevo {
+    background: var(--primary);
+    color: white;
+}
+
+.product-badge.top {
+    background: var(--warning);
+    color: white;
+}
+
 .product-card-info {
     padding: 12px;
 }
@@ -900,9 +932,18 @@ body {
 }
 
 .product-card-info .product-price {
-    font-size: 16px;
-    font-weight: 700;
+    font-family: 'Manrope', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
     color: var(--text-price);
+    margin-top: 4px;
+}
+
+.product-card-info .product-volume-price {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    font-weight: 500;
 }
 
 .product-card-info .product-price-old {
@@ -942,6 +983,19 @@ body {
    ============================ */
 .detail-screen {
     background: var(--bg-card);
+    min-height: 100vh;
+    animation: slideUpDetail 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUpDetail {
+    from {
+        opacity: 0;
+        transform: translateY(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .detail-back {
@@ -1117,6 +1171,14 @@ body {
     color: var(--text-secondary);
     line-height: 1.6;
     margin-bottom: 20px;
+    background: var(--bg);
+    padding: 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+}
+
+.detail-description strong {
+    color: var(--text-primary);
 }
 
 .detail-price-row {
@@ -1206,32 +1268,59 @@ body {
 .detail-add-btn {
     width: 100%;
     padding: 16px;
-    background: linear-gradient(135deg, var(--primary) 0%, #0f3460 100%);
+    background: var(--primary);
     color: white;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     font-size: 16px;
+    font-family: 'Manrope', sans-serif;
     font-weight: 700;
-    font-family: 'Inter', sans-serif;
     cursor: pointer;
     transition: all var(--transition-fast);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    box-shadow: 0 4px 15px rgba(26, 26, 46, 0.3);
+    gap: 8px;
     touch-action: manipulation;
 }
 
 .detail-add-btn:hover {
-    box-shadow: 0 6px 20px rgba(26, 26, 46, 0.4);
-    transform: translateY(-1px);
+    background: var(--primary-light);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
 }
 
 .detail-add-btn:disabled {
-    opacity: 0.5;
+    background: var(--border);
+    color: var(--text-tertiary);
     cursor: not-allowed;
+    box-shadow: none;
     transform: none;
+}
+
+.wa-order-btn {
+    width: 100%;
+    padding: 16px;
+    background: #25D366;
+    color: white;
+    border-radius: var(--radius-md);
+    border: none;
+    font-size: 16px;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+    transition: all var(--transition-fast);
+}
+
+.wa-order-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4);
 }
 
 /* Related Products */
@@ -2937,5 +3026,84 @@ body {
 /* ---- Nav tab Nanocarbon ---- */
 .nav-item-nano-hidden {
     display: none !important;
+}
+
+/* ============================
+   SKELETON LOADING
+   ============================ */
+.skeleton-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+}
+
+.skeleton-img {
+    width: 100%;
+    height: 180px;
+    background: #e2e8f0;
+    animation: skeleton-shimmer 1.5s infinite linear;
+}
+
+.skeleton-text {
+    background: #e2e8f0;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    animation: skeleton-shimmer 1.5s infinite linear;
+}
+
+.skeleton-title {
+    height: 18px;
+    width: 80%;
+    margin-top: 12px;
+}
+
+.skeleton-ref {
+    height: 12px;
+    width: 60%;
+}
+
+.skeleton-price {
+    height: 24px;
+    width: 40%;
+    margin-top: auto;
+}
+
+@keyframes skeleton-shimmer {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+}
+
+/* ============================
+   GLOBAL FLOATING WHATSAPP
+   ============================ */
+.global-wa-btn {
+    position: fixed;
+    bottom: calc(var(--nav-height) + 16px);
+    right: 16px;
+    width: 56px;
+    height: 56px;
+    background: #25D366;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
+    z-index: 100;
+    transition: all var(--transition-fast);
+    animation: pulse-wa 2s infinite;
+}
+
+.global-wa-btn:hover {
+    transform: scale(1.1);
+}
+
+@keyframes pulse-wa {
+    0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); }
+    70% { box-shadow: 0 0 0 15px rgba(37, 211, 102, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
 }
 

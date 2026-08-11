@@ -307,9 +307,26 @@ function shuffleArray(array) {
   return array;
 }
 
+function renderSkeletons() {
+  const container = document.getElementById('products-grid');
+  if (!container) return;
+  const skeletons = Array(6).fill(`
+    <div class="product-card skeleton-card">
+      <div class="skeleton-img"></div>
+      <div class="product-card-info">
+        <div class="skeleton-text skeleton-title"></div>
+        <div class="skeleton-text skeleton-ref"></div>
+        <div class="skeleton-text skeleton-price"></div>
+      </div>
+    </div>
+  `).join('');
+  container.innerHTML = skeletons;
+}
+
 async function initData() {
   state.isLoading = true;
-  document.body.classList.add('loading');
+  document.body.classList.add('loading-skeleton');
+  renderSkeletons();
 
   // Fetch products and clients in parallel for faster loading
   const [sheetProducts, sheetClients] = await Promise.all([
@@ -367,7 +384,7 @@ async function initData() {
   }
 
   state.isLoading = false;
-  document.body.classList.remove('loading');
+  document.body.classList.remove('loading-skeleton');
 
   // Initialize Analytics Web App URL
   if (typeof Analytics !== 'undefined' && CONFIG.analyticsWebAppUrl) {
@@ -754,12 +771,28 @@ function renderProducts() {
     const safePhoto = escapeHtml(product.photo);
 
     const driveId = getDriveId(product.photo);
+    
+    let stockIndicator = '';
+    if (product.stock >= 5) {
+      stockIndicator = '✓ Disponible';
+    } else if (product.stock > 0) {
+      stockIndicator = `⚠️ Pocas un. (${product.stock})`;
+    } else {
+      stockIndicator = '✗ Agotado';
+    }
+
+    let badgeHtml = '';
+    if (product.isPromo) {
+      badgeHtml = `<span class="product-badge oferta">Oferta</span>`;
+    }
+
     return `
       <div class="product-card" onclick="openProduct('${safeId}')">
         <div class="product-card-image">
           <img src="${safePhoto}" alt="${safeName}" data-drive-id="${driveId || ''}" loading="lazy" onerror="handleImgError(this)">
+          ${badgeHtml}
           <span class="stock-badge ${inStock ? 'in-stock' : 'out-of-stock'}">
-            ${inStock ? `✓ ${product.stock} disp.` : '✗ Agotado'}
+            ${stockIndicator}
           </span>
           <button class="fav-btn" onclick="event.stopPropagation()">♡</button>
         </div>
@@ -1091,6 +1124,29 @@ function changeDetailQty(delta) {
   if (newQty < 1 || newQty > product.stock) return;
   state.detailQty = newQty;
   renderDetail();
+}
+
+function orderSingleProductWhatsApp() {
+  const product = state.selectedProduct;
+  if (!product || product.stock === 0) return;
+  
+  const qty = state.detailQty;
+  const price = getProductPrice(product);
+  const total = price * qty;
+  
+  let msg = `*NUEVO PEDIDO DIRECTO* 📦\n\n`;
+  msg += `*Producto:* ${product.name}\n`;
+  msg += `*Referencia:* ${product.reference}\n`;
+  msg += `*Cantidad:* ${qty}\n`;
+  msg += `*Total:* ${formatCurrency(total)}\n\n`;
+  
+  if (state.currentUser) {
+    msg += `*Cliente:* ${state.currentUser.name} (${state.currentUser.type})\n`;
+    msg += `*Doc:* ${state.currentUser.id}\n`;
+  }
+  
+  const waUrl = `https://wa.me/${CONFIG.vendorPhone}?text=${encodeURIComponent(msg)}`;
+  window.open(waUrl, '_blank');
 }
 
 function addToCartFromDetail() {
