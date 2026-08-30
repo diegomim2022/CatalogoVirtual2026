@@ -45,23 +45,37 @@
             <p>Catálogo Digital de Pedidos</p>
           </div>
 
-          <form id="login-form">
-            <div id="login-error" class="login-error"></div>
+          <div id="login-error" class="login-error"></div>
 
+          <!-- Flow options -->
+          <div id="login-options" style="display: flex; flex-direction: column; gap: 10px;">
+            <button type="button" class="btn btn-primary" id="btn-enter-visitor">
+              Entrar al Catálogo
+            </button>
+            <button type="button" class="btn btn-secondary" id="btn-show-wholesale" style="background: transparent; border: 1px solid var(--accent); color: var(--accent);">
+              Soy Mayorista
+            </button>
+          </div>
+
+          <!-- Wholesale form (hidden by default) -->
+          <form id="login-form" style="display: none; margin-top: 15px;">
             <div class="form-group">
-              <label for="login-id">Número de Documento</label>
-              <input type="text" id="login-id" placeholder="Ingresa tu número de documento" required autocomplete="off">
+              <label for="login-id">Número de Documento (Mayorista)</label>
+              <input type="text" id="login-id" placeholder="Ingresa tu documento" autocomplete="off">
             </div>
 
             <button type="submit" class="btn btn-primary">
-              Iniciar Sesión
+              Validar y Entrar
+            </button>
+            <button type="button" class="btn" id="btn-cancel-wholesale" style="margin-top: 10px; background: transparent; color: var(--text-secondary); width: 100%;">
+              Volver
             </button>
           </form>
 
-          <div class="login-instructions"
+          <div class="login-instructions" id="login-instructions"
             style="margin-top: 20px; padding: 14px; background: rgba(26, 26, 46, 0.05); border-radius: 8px; font-size: 13px; color: var(--text-secondary); text-align: center; line-height: 1.6;">
-            <strong>Instrucciones de Acceso:</strong><br>
-            Ingresa tu número de documento para acceder al catálogo y realizar pedidos.
+            <strong>¡Bienvenido!</strong><br>
+            Puedes entrar directamente al catálogo o ingresar como mayorista si tienes cuenta.
           </div>
         </div>
       </div>

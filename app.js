@@ -575,7 +575,58 @@ function navigateTo(screenId) {
 }
 
 // ---- AUTH ----
-function handleLogin(e) {
+function initLogin() {
+  const btnVisitor = document.getElementById('btn-enter-visitor');
+  const btnShowWholesale = document.getElementById('btn-show-wholesale');
+  const btnCancelWholesale = document.getElementById('btn-cancel-wholesale');
+  const loginOptions = document.getElementById('login-options');
+  const loginForm = document.getElementById('login-form');
+  const loginIdInput = document.getElementById('login-id');
+  const instructions = document.getElementById('login-instructions');
+
+  if (btnVisitor) {
+    btnVisitor.addEventListener('click', (e) => {
+      e.preventDefault();
+      loginAsVisitor();
+    });
+  }
+
+  if (btnShowWholesale) {
+    btnShowWholesale.addEventListener('click', () => {
+      loginOptions.style.display = 'none';
+      instructions.style.display = 'none';
+      loginForm.style.display = 'block';
+      loginIdInput.required = true;
+    });
+  }
+
+  if (btnCancelWholesale) {
+    btnCancelWholesale.addEventListener('click', () => {
+      loginForm.style.display = 'none';
+      loginOptions.style.display = 'flex';
+      instructions.style.display = 'block';
+      loginIdInput.required = false;
+      loginIdInput.value = '';
+      document.getElementById('login-error').classList.remove('show');
+    });
+  }
+
+  if (loginForm) {
+    loginForm.addEventListener('submit', handleWholesaleLogin);
+  }
+}
+
+function loginAsVisitor() {
+  state.currentUser = {
+    id: 'visitante-' + Date.now().toString().slice(-4),
+    name: 'Visitante',
+    type: 'Usuario Final',
+    phone: ''
+  };
+  finishLogin();
+}
+
+function handleWholesaleLogin(e) {
   e.preventDefault();
   const clientId = document.getElementById('login-id').value.trim().replace(/[<>"'&]/g, '');
   const errorEl = document.getElementById('login-error');
@@ -593,18 +644,16 @@ function handleLogin(e) {
       type: 'Mayorista',
       phone: registeredClient.phone
     };
+    errorEl.classList.remove('show');
+    finishLogin();
   } else {
-    // Cliente no registrado — entra como Usuario Final
-    state.currentUser = {
-      id: clientId,
-      name: 'Cliente ' + clientId,
-      type: 'Usuario Final',
-      phone: ''
-    };
+    // Cliente no registrado — error
+    errorEl.textContent = 'Documento no encontrado o no autorizado.';
+    errorEl.classList.add('show');
   }
+}
 
-  errorEl.classList.remove('show');
-
+function finishLogin() {
   // Track access for analytics
   if (typeof Analytics !== 'undefined') {
     Analytics.trackAccess(state.currentUser.id, state.currentUser.name);
@@ -1653,9 +1702,8 @@ function toggleOrderDetails(card) {
 
 // ---- INITIALIZATION (consolidated single listener) ----
 document.addEventListener('DOMContentLoaded', () => {
-  // Login form
-  const loginForm = document.getElementById('login-form');
-  if (loginForm) loginForm.addEventListener('submit', handleLogin);
+  // Login flow
+  initLogin();
 
   // Search with debounce
   const searchInput = document.getElementById('search-input');
