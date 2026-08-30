@@ -1166,6 +1166,35 @@ body {
     background: #000;
 }
 
+.gallery-video-fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    height: 100%;
+    padding: 24px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.gallery-video-open {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-full);
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.gallery-video-open:hover {
+    background: var(--accent-hover);
+}
+
 .gallery-video-play {
     position: absolute;
     top: 50%;
