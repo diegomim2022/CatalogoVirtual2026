@@ -1,5 +1,5 @@
 // Service Worker — Catálogo Digital de Pedidos
-const CACHE_NAME = 'catalogo-v2.6';
+const CACHE_NAME = 'catalogo-v2.7';
 const STATIC_ASSETS = [
     './',
     'index.html',
@@ -36,8 +36,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Don't cache Google Drive video downloads (large files)
-    if (url.hostname === 'drive.google.com' && url.searchParams.get('export') === 'download') {
+    // Don't cache/intercept Google Drive media (videos): both the direct content
+    // URL and the uc download redirect must reach the browser untouched.
+    if (url.hostname === 'drive.usercontent.google.com' ||
+        (url.hostname === 'drive.google.com' && url.searchParams.get('export') === 'download')) {
         return; // let the browser handle it as a normal network request
     }
 

@@ -260,7 +260,15 @@ function getDriveId(url) {
 function transformDriveVideoUrl(url) {
   const id = getDriveId(url);
   if (!id) return url;
-  return `https://drive.google.com/uc?export=download&id=${id}`;
+  // URL directa (sin redirect) para máxima compatibilidad con <video> en móviles y navegadores
+  return `https://drive.usercontent.google.com/download?id=${id}&export=download`;
+}
+
+function transformDrivePreviewUrl(url) {
+  const id = getDriveId(url);
+  if (!id) return url;
+  // Reproductor embebido de Google Drive (fallback universal)
+  return `https://drive.google.com/file/d/${id}/preview`;
 }
 
 function transformDriveVideoPoster(url) {
@@ -276,7 +284,8 @@ function getDetailMedia(product) {
     media.push({
       type: 'video',
       src: transformDriveVideoUrl(product.video),
-      poster: transformDriveVideoPoster(product.video)
+      poster: transformDriveVideoPoster(product.video),
+      preview: transformDrivePreviewUrl(product.video)
     });
   }
   return media;
@@ -905,7 +914,7 @@ function renderDetail() {
   wrapper.innerHTML = media.map(item => {
     if (item.type === 'video') {
       return `
-    <div class="gallery-video-slide" data-video-src="${escapeHtml(item.src)}" data-poster="${escapeHtml(item.poster)}">
+    <div class="gallery-video-slide" data-video-src="${escapeHtml(item.src)}" data-poster="${escapeHtml(item.poster)}" data-video-preview="${escapeHtml(item.preview)}">
       <img src="${escapeHtml(item.poster)}" alt="${escapeHtml(product.name)} (video)" loading="lazy" draggable="false" onerror="handleImgError(this)">
       <button type="button" class="gallery-video-play" aria-label="Reproducir video">▶</button>
     </div>
@@ -1388,9 +1397,11 @@ function cancelOrder() {
 
 // ---- VIDEO PLAYBACK (gallery) ----
 function playGalleryVideo(slide) {
-  if (!slide || slide.querySelector('video')) return;
+  if (!slide || slide.querySelector('video, iframe')) return;
   const src = slide.getAttribute('data-video-src');
   const poster = slide.getAttribute('data-poster');
+  const preview = slide.getAttribute('data-video-preview');
+
   const video = document.createElement('video');
   video.src = src;
   video.poster = poster || '';
@@ -1398,9 +1409,29 @@ function playGalleryVideo(slide) {
   video.autoplay = true;
   video.playsInline = true;
   video.preload = 'metadata';
+
+  // Fallback universal: si el <video> nativo falla (Safari iOS, Shields, etc.),
+  // montamos el reproductor embebido de Google Drive, que funciona en cualquier dispositivo.
+  video.onerror = function () {
+    if (preview) showVideoFallback(slide, preview);
+  };
+
   slide.innerHTML = '';
   slide.appendChild(video);
   video.play().catch(() => {});
+}
+
+function showVideoFallback(slide, previewUrl) {
+  if (!slide || slide.querySelector('iframe')) return;
+  const iframe = document.createElement('iframe');
+  iframe.src = previewUrl;
+  iframe.title = 'Reproductor de video';
+  iframe.allow = 'autoplay; fullscreen';
+  iframe.allowFullscreen = true;
+  iframe.setAttribute('frameborder', '0');
+  iframe.className = 'gallery-video-iframe';
+  slide.innerHTML = '';
+  slide.appendChild(iframe);
 }
 
 // ---- ZOOM LOGIC ----
