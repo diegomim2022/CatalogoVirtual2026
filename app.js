@@ -1390,10 +1390,19 @@ function cancelOrder() {
 
 // ---- VIDEO PLAYBACK (gallery) ----
 function playGalleryVideo(slide) {
-  if (!slide || slide.querySelector('video')) return;
+  if (!slide || slide.querySelector('video, iframe')) return;
   const src = slide.getAttribute('data-video-src');
   const poster = slide.getAttribute('data-poster');
+  const driveId = getDriveId(src);
 
+  // Los videos de Google Drive no reproducen bien en <video> nativo:
+  // vamos directo al reproductor embebido de Google (inline, en un solo clic).
+  if (driveId) {
+    showVideoFallback(slide, src);
+    return;
+  }
+
+  // URL directa (no Drive): reproductor nativo
   const video = document.createElement('video');
   video.src = src;
   video.poster = poster || '';
@@ -1401,13 +1410,9 @@ function playGalleryVideo(slide) {
   video.autoplay = true;
   video.playsInline = true;
   video.preload = 'metadata';
-
-  // Si el <video> nativo no puede reproducir, ofrecemos abrir el video en una
-  // pestaña nueva (funciona en cualquier dispositivo, sin login).
   video.onerror = function () {
     showVideoFallback(slide, src);
   };
-
   slide.innerHTML = '';
   slide.appendChild(video);
   video.play().catch(() => {});
