@@ -189,7 +189,7 @@ function restoreSession() {
 
 async function fetchSheetData(gid) {
   // Check sessionStorage cache first
-  const cacheKey = `sheet_cache_${gid}_v2`;
+  const cacheKey = `sheet_cache_${gid}_v3`;
   const cacheTimeKey = `sheet_cache_time_${gid}`;
   try {
     const cached = sessionStorage.getItem(cacheKey);
@@ -255,6 +255,31 @@ function getDriveId(url) {
   const regex = /\/d\/([^\/=]+)(\/|=|$)|\/d\/([^\/]+)(\/|$)|id=([^\&]+)/;
   const match = url.match(regex);
   return match ? (match[1] || match[3] || match[5]) : null;
+}
+
+function transformDriveVideoUrl(url) {
+  const id = getDriveId(url);
+  if (!id) return url;
+  return `https://drive.google.com/uc?export=download&id=${id}`;
+}
+
+function transformDriveVideoPoster(url) {
+  const id = getDriveId(url);
+  if (!id) return url;
+  return `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
+}
+
+function getDetailMedia(product) {
+  const photos = (product.photos && product.photos.length > 0) ? product.photos : [product.photo];
+  const media = photos.map(src => ({ type: 'image', src }));
+  if (product.video) {
+    media.push({
+      type: 'video',
+      src: transformDriveVideoUrl(product.video),
+      poster: transformDriveVideoPoster(product.video)
+    });
+  }
+  return media;
 }
 
 function parseCSV(csv) {
@@ -347,6 +372,7 @@ async function initData() {
           id: getV('ID Producto') || p[''] || '',
           photo: transformDriveUrl(getV('Foto')) || IMG_PLACEHOLDER,
           photos: [getV('Foto'), getV('Foto2'), getV('Foto3'), getV('Foto4')].map(url => transformDriveUrl(url)).filter(f => f && f.trim() !== ''),
+          video: getV('Video') || '',
           reference: getV('Referencia') || '',
           name: getV('Nombre') || 'Sin nombre',
           description: getV('Descripcion') || '',
@@ -873,21 +899,30 @@ function renderDetail() {
   const inStock = product.stock > 0;
 
   // Gallery logic
-  const photos = product.photos.length > 0 ? product.photos : [product.photo];
+  const media = getDetailMedia(product);
   const wrapper = document.getElementById('gallery-wrapper');
 
-  wrapper.innerHTML = photos.map(photo => {
-    const driveId = getDriveId(photo);
+  wrapper.innerHTML = media.map(item => {
+    if (item.type === 'video') {
+      return `
+    <div class="gallery-video-slide" data-video-src="${escapeHtml(item.src)}" data-poster="${escapeHtml(item.poster)}">
+      <img src="${escapeHtml(item.poster)}" alt="${escapeHtml(product.name)} (video)" loading="lazy" draggable="false" onerror="handleImgError(this)">
+      <button type="button" class="gallery-video-play" aria-label="Reproducir video">▶</button>
+    </div>
+  `;
+    }
+    const driveId = getDriveId(item.src);
     return `
-    <img src="${escapeHtml(photo)}" alt="${escapeHtml(product.name)}" data-drive-id="${driveId || ''}" loading="lazy" draggable="false" onerror="handleImgError(this)">
-  `}).join('');
+    <img src="${escapeHtml(item.src)}" alt="${escapeHtml(product.name)}" data-drive-id="${driveId || ''}" loading="lazy" draggable="false" onerror="handleImgError(this)">
+  `;
+  }).join('');
 
   // Add scroll listener for dots
   wrapper.onscroll = () => {
     const index = Math.round(wrapper.scrollLeft / (wrapper.clientWidth || 1));
     if (state.currentDetailImageIndex !== index) {
       state.currentDetailImageIndex = index;
-      updateDetailDots(photos.length);
+      updateDetailDots(media.length);
     }
   };
 
@@ -932,14 +967,14 @@ function renderDetail() {
   };
 
   state.currentDetailImageIndex = 0; // Reset index to first image
-  updateDetailDots(photos.length);
+  updateDetailDots(media.length);
   wrapper.scrollLeft = 0; // Ensure starts at beginning
 
   // Arrow buttons visibility
   const prevBtn = document.getElementById('gallery-btn-prev');
   const nextBtn = document.getElementById('gallery-btn-next');
   if (prevBtn && nextBtn) {
-    if (photos.length > 1) {
+    if (media.length > 1) {
       prevBtn.style.display = 'flex';
       nextBtn.style.display = 'flex';
     } else {
@@ -981,18 +1016,31 @@ function renderDetail() {
   addBtn.disabled = !inStock;
   addBtn.textContent = inStock ? `🛒 Agregar al carrito — ${formatCurrency(price * state.detailQty)}` : 'Producto agotado';
 
-  // Attach zoom event to images
-  const images = wrapper.querySelectorAll('img');
-  images.forEach((img, index) => {
-    img.style.cursor = 'zoom-in';
-    img.style.pointerEvents = 'auto'; // Allow clicking
-    img.onclick = (e) => {
-      if (isDraggingGallery) {
-        e.preventDefault();
-        return;
-      }
-      openZoom(index);
-    };
+  // Attach interactions per slide: image -> zoom, video -> play
+  let photoIndex = 0;
+  Array.from(wrapper.children).forEach((child) => {
+    if (child.classList && child.classList.contains('gallery-video-slide')) {
+      child.onclick = (e) => {
+        if (isDraggingGallery) {
+          e.preventDefault();
+          return;
+        }
+        playGalleryVideo(child);
+      };
+      return;
+    }
+    if (child.tagName === 'IMG') {
+      child.style.cursor = 'zoom-in';
+      child.style.pointerEvents = 'auto'; // Allow clicking
+      child.onclick = (e) => {
+        if (isDraggingGallery) {
+          e.preventDefault();
+          return;
+        }
+        openZoom(photoIndex);
+      };
+      photoIndex++;
+    }
   });
   
   // Render related products
@@ -1072,8 +1120,7 @@ function setDetailImage(index) {
 function changeDetailImage(delta) {
   const product = state.selectedProduct;
   if (!product) return;
-  const photos = product.photos.length > 0 ? product.photos : [product.photo];
-  const total = photos.length;
+  const total = getDetailMedia(product).length;
   if (total <= 1) return;
 
   let newIndex = state.currentDetailImageIndex + delta;
@@ -1337,6 +1384,23 @@ function renderConfirmation() {
 
 function cancelOrder() {
   navigateTo('cart');
+}
+
+// ---- VIDEO PLAYBACK (gallery) ----
+function playGalleryVideo(slide) {
+  if (!slide || slide.querySelector('video')) return;
+  const src = slide.getAttribute('data-video-src');
+  const poster = slide.getAttribute('data-poster');
+  const video = document.createElement('video');
+  video.src = src;
+  video.poster = poster || '';
+  video.controls = true;
+  video.autoplay = true;
+  video.playsInline = true;
+  video.preload = 'metadata';
+  slide.innerHTML = '';
+  slide.appendChild(video);
+  video.play().catch(() => {});
 }
 
 // ---- ZOOM LOGIC ----

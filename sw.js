@@ -1,5 +1,5 @@
 // Service Worker — Catálogo Digital de Pedidos
-const CACHE_NAME = 'catalogo-v2.4';
+const CACHE_NAME = 'catalogo-v2.6';
 const STATIC_ASSETS = [
     './',
     'index.html',
@@ -35,6 +35,11 @@ self.addEventListener('activate', (event) => {
 // Fetch: network-first for API calls, cache-first for static assets
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
+
+    // Don't cache Google Drive video downloads (large files)
+    if (url.hostname === 'drive.google.com' && url.searchParams.get('export') === 'download') {
+        return; // let the browser handle it as a normal network request
+    }
 
     // Network-first for Google Sheets data
     if (url.hostname === 'docs.google.com') {

@@ -1131,6 +1131,58 @@ body {
     right: 10px;
 }
 
+/* Video slide in the product gallery */
+.gallery-video-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: center;
+    position: relative;
+    padding: 20px;
+}
+
+.gallery-video-slide img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    padding: 0;
+}
+
+.gallery-video-slide video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+}
+
+.gallery-video-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.62);
+    color: #fff;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 6;
+    transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.gallery-video-play:hover {
+    background: var(--accent);
+    transform: translate(-50%, -50%) scale(1.08);
+}
+
 .detail-body {
     padding: 24px 20px;
     animation: slideUp 0.3s ease;
