@@ -923,6 +923,13 @@ function renderDetail() {
   const media = getDetailMedia(product);
   const wrapper = document.getElementById('gallery-wrapper');
 
+  const existingVideo = wrapper.querySelector('video');
+  if (existingVideo) {
+      existingVideo.pause();
+      existingVideo.src = '';
+      existingVideo.load();
+  }
+
   wrapper.innerHTML = media.map(item => {
     if (item.type === 'video') {
       if (item.native) {
