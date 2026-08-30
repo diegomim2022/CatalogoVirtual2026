@@ -265,6 +265,13 @@ function transformDriveVideoUrl(url) {
   return `https://drive.usercontent.google.com/download?id=${id}`;
 }
 
+function transformDrivePreviewUrl(url) {
+  const id = getDriveId(url);
+  if (!id) return url;
+  // Reproductor embebido de Google Drive (funciona en cualquier dispositivo, sin login)
+  return `https://drive.google.com/file/d/${id}/preview`;
+}
+
 function transformDriveVideoPoster(url) {
   const id = getDriveId(url);
   if (!id) return url;
@@ -277,8 +284,7 @@ function getDetailMedia(product) {
   if (product.video) {
     media.push({
       type: 'video',
-      src: transformDriveVideoUrl(product.video),
-      poster: transformDriveVideoPoster(product.video)
+      preview: transformDrivePreviewUrl(product.video)
     });
   }
   return media;
@@ -907,9 +913,8 @@ function renderDetail() {
   wrapper.innerHTML = media.map(item => {
     if (item.type === 'video') {
       return `
-    <div class="gallery-video-slide" data-video-src="${escapeHtml(item.src)}" data-poster="${escapeHtml(item.poster)}">
-      <img src="${escapeHtml(item.poster)}" alt="${escapeHtml(product.name)} (video)" loading="lazy" draggable="false" onerror="handleImgError(this)">
-      <button type="button" class="gallery-video-play" aria-label="Reproducir video">▶</button>
+    <div class="gallery-video-slide">
+      <iframe src="${escapeHtml(item.preview)}" loading="lazy" allow="autoplay; fullscreen" allowfullscreen title="Video del producto"></iframe>
     </div>
   `;
     }
@@ -1018,19 +1023,9 @@ function renderDetail() {
   addBtn.disabled = !inStock;
   addBtn.textContent = inStock ? `🛒 Agregar al carrito — ${formatCurrency(price * state.detailQty)}` : 'Producto agotado';
 
-  // Attach interactions per slide: image -> zoom, video -> play
+  // Attach zoom to images only (los slides de video son iframes autocontenidos)
   let photoIndex = 0;
   Array.from(wrapper.children).forEach((child) => {
-    if (child.classList && child.classList.contains('gallery-video-slide')) {
-      child.onclick = (e) => {
-        if (isDraggingGallery) {
-          e.preventDefault();
-          return;
-        }
-        playGalleryVideo(child);
-      };
-      return;
-    }
     if (child.tagName === 'IMG') {
       child.style.cursor = 'zoom-in';
       child.style.pointerEvents = 'auto'; // Allow clicking
@@ -1386,52 +1381,6 @@ function renderConfirmation() {
 
 function cancelOrder() {
   navigateTo('cart');
-}
-
-// ---- VIDEO PLAYBACK (gallery) ----
-function playGalleryVideo(slide) {
-  if (!slide || slide.querySelector('video, iframe')) return;
-  const src = slide.getAttribute('data-video-src');
-  const poster = slide.getAttribute('data-poster');
-  const driveId = getDriveId(src);
-
-  // Los videos de Google Drive no reproducen bien en <video> nativo:
-  // vamos directo al reproductor embebido de Google (inline, en un solo clic).
-  if (driveId) {
-    showVideoFallback(slide, src);
-    return;
-  }
-
-  // URL directa (no Drive): reproductor nativo
-  const video = document.createElement('video');
-  video.src = src;
-  video.poster = poster || '';
-  video.controls = true;
-  video.autoplay = true;
-  video.playsInline = true;
-  video.preload = 'metadata';
-  video.onerror = function () {
-    showVideoFallback(slide, src);
-  };
-  slide.innerHTML = '';
-  slide.appendChild(video);
-  video.play().catch(() => {});
-}
-
-function showVideoFallback(slide, videoUrl) {
-  if (!slide || slide.querySelector('iframe')) return;
-  // Reproductor embebido de Google Drive: reproduce INLINE y funciona en cualquier dispositivo.
-  const id = getDriveId(videoUrl);
-  const previewUrl = id ? 'https://drive.google.com/file/d/' + id + '/preview' : videoUrl;
-  const iframe = document.createElement('iframe');
-  iframe.src = previewUrl;
-  iframe.title = 'Reproductor de video';
-  iframe.allow = 'autoplay; fullscreen';
-  iframe.allowFullscreen = true;
-  iframe.setAttribute('frameborder', '0');
-  iframe.className = 'gallery-video-iframe';
-  slide.innerHTML = '';
-  slide.appendChild(iframe);
 }
 
 // ---- ZOOM LOGIC ----
