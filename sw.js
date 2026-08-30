@@ -1,5 +1,5 @@
 // Service Worker — Catálogo Digital de Pedidos
-const CACHE_NAME = 'catalogo-v2.11';
+const CACHE_NAME = 'catalogo-v2.12';
 const STATIC_ASSETS = [
     './',
     'index.html',
