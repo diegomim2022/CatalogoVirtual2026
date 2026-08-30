@@ -1414,20 +1414,19 @@ function playGalleryVideo(slide) {
 }
 
 function showVideoFallback(slide, videoUrl) {
-  if (!slide || slide.querySelector('.gallery-video-fallback')) return;
-  const wrap = document.createElement('div');
-  wrap.className = 'gallery-video-fallback';
-  const msg = document.createElement('p');
-  msg.textContent = 'No se pudo reproducir el video aquí.';
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'gallery-video-open';
-  btn.textContent = '▶ Abrir video';
-  btn.onclick = function () { window.open(videoUrl, '_blank'); };
-  wrap.appendChild(msg);
-  wrap.appendChild(btn);
+  if (!slide || slide.querySelector('iframe')) return;
+  // Reproductor embebido de Google Drive: reproduce INLINE y funciona en cualquier dispositivo.
+  const id = getDriveId(videoUrl);
+  const previewUrl = id ? 'https://drive.google.com/file/d/' + id + '/preview' : videoUrl;
+  const iframe = document.createElement('iframe');
+  iframe.src = previewUrl;
+  iframe.title = 'Reproductor de video';
+  iframe.allow = 'autoplay; fullscreen';
+  iframe.allowFullscreen = true;
+  iframe.setAttribute('frameborder', '0');
+  iframe.className = 'gallery-video-iframe';
   slide.innerHTML = '';
-  slide.appendChild(wrap);
+  slide.appendChild(iframe);
 }
 
 // ---- ZOOM LOGIC ----
