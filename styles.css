@@ -1027,7 +1027,7 @@ body {
 
 .detail-image-container {
     width: 100%;
-    height: 400px;
+    height: clamp(400px, 58vh, 540px);
     background: #fcfcfc;
     position: relative;
     overflow: hidden;
@@ -1138,7 +1138,10 @@ body {
     height: 100%;
     scroll-snap-align: center;
     position: relative;
-    padding: 20px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .gallery-video-slide img {
@@ -1153,9 +1156,9 @@ body {
 .gallery-video-slide video {
     display: block;
     width: 100%;
-    height: 100%;
+    height: auto;
+    max-height: 100%;
     object-fit: contain;
-    background: #000;
 }
 
 .gallery-video-slide iframe {
