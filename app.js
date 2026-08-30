@@ -978,6 +978,10 @@ function renderDetail() {
       existingVideo.src = '';
       existingVideo.load();
   }
+  const existingIframe = wrapper.querySelector('iframe');
+  if (existingIframe) {
+      existingIframe.src = 'about:blank';
+  }
 
   wrapper.innerHTML = media.map(item => {
     if (item.type === 'video') {
