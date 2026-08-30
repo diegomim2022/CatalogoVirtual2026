@@ -282,10 +282,23 @@ function getDetailMedia(product) {
   const photos = (product.photos && product.photos.length > 0) ? product.photos : [product.photo];
   const media = photos.map(src => ({ type: 'image', src }));
   if (product.video) {
-    media.push({
-      type: 'video',
-      preview: transformDrivePreviewUrl(product.video)
-    });
+    const driveId = getDriveId(product.video);
+    if (driveId) {
+      // Video de Google Drive → reproductor embebido de Google
+      media.push({
+        type: 'video',
+        native: false,
+        preview: transformDrivePreviewUrl(product.video)
+      });
+    } else {
+      // URL directa (repo u otro host) → reproductor nativo, sin barras negras
+      media.push({
+        type: 'video',
+        native: true,
+        src: product.video,
+        poster: product.photo
+      });
+    }
   }
   return media;
 }
@@ -912,6 +925,13 @@ function renderDetail() {
 
   wrapper.innerHTML = media.map(item => {
     if (item.type === 'video') {
+      if (item.native) {
+        return `
+    <div class="gallery-video-slide">
+      <video controls playsinline preload="metadata" src="${escapeHtml(item.src)}" poster="${escapeHtml(item.poster)}"></video>
+    </div>
+  `;
+      }
       return `
     <div class="gallery-video-slide">
       <iframe src="${escapeHtml(item.preview)}" loading="lazy" allow="autoplay; fullscreen" allowfullscreen title="Video del producto"></iframe>
