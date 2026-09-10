@@ -278,8 +278,20 @@ function transformDriveVideoPoster(url) {
   return `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
 }
 
+function getProductPhotos(product) {
+  if (!product) return [];
+  if (Array.isArray(product.photos) && product.photos.length > 0) {
+    const valid = product.photos.filter(f => f && typeof f === 'string' && f.trim() !== '');
+    if (valid.length > 0) return valid;
+  }
+  if (product.photo && typeof product.photo === 'string' && product.photo.trim() !== '') {
+    return [product.photo];
+  }
+  return [];
+}
+
 function getDetailMedia(product) {
-  const photos = (product.photos && product.photos.length > 0) ? product.photos : [product.photo];
+  const photos = getProductPhotos(product);
   const media = photos.map(src => ({ type: 'image', src }));
   if (product.video) {
     const driveId = getDriveId(product.video);
@@ -1107,6 +1119,7 @@ function renderDetail() {
   let photoIndex = 0;
   Array.from(wrapper.children).forEach((child) => {
     if (child.tagName === 'IMG') {
+      const currentIdx = photoIndex;
       child.style.cursor = 'zoom-in';
       child.style.pointerEvents = 'auto'; // Allow clicking
       child.onclick = (e) => {
@@ -1114,7 +1127,7 @@ function renderDetail() {
           e.preventDefault();
           return;
         }
-        openZoom(photoIndex);
+        openZoom(currentIdx);
       };
       photoIndex++;
     }
@@ -1467,11 +1480,14 @@ function cancelOrder() {
 function openZoom(index) {
   const product = state.selectedProduct;
   if (!product) return;
-  const photos = product.photos.length > 0 ? product.photos : [product.photo];
-  state.currentZoomImageIndex = index;
+  const photos = getProductPhotos(product);
+  if (photos.length === 0) return;
+
+  const validIndex = (typeof index === 'number' && index >= 0 && index < photos.length) ? index : 0;
+  state.currentZoomImageIndex = validIndex;
   const modal = document.getElementById('zoom-modal');
   const zoomImg = document.getElementById('zoom-img');
-  zoomImg.src = photos[index];
+  zoomImg.src = photos[validIndex];
   zoomImg.classList.remove('zoomed');
 
   modal.style.display = 'flex';
@@ -1485,7 +1501,8 @@ function openZoom(index) {
 
 function updateZoomUI() {
   const product = state.selectedProduct;
-  const photos = product.photos.length > 0 ? product.photos : [product.photo];
+  if (!product) return;
+  const photos = getProductPhotos(product);
   const total = photos.length;
   const current = state.currentZoomImageIndex;
 
@@ -1500,8 +1517,9 @@ function updateZoomUI() {
 function changeZoomImage(delta) {
   const product = state.selectedProduct;
   if (!product) return;
-  const photos = product.photos.length > 0 ? product.photos : [product.photo];
+  const photos = getProductPhotos(product);
   const total = photos.length;
+  if (total <= 1) return;
 
   let newIndex = state.currentZoomImageIndex + delta;
   if (newIndex < 0) newIndex = total - 1;
