@@ -1468,16 +1468,17 @@ function openZoom(index) {
   const product = state.selectedProduct;
   if (!product) return;
   const photos = product.photos.length > 0 ? product.photos : [product.photo];
-
   state.currentZoomImageIndex = index;
   const modal = document.getElementById('zoom-modal');
   const zoomImg = document.getElementById('zoom-img');
-
   zoomImg.src = photos[index];
   zoomImg.classList.remove('zoomed');
-  modal.classList.add('active');
-  document.body.style.overflow = 'hidden'; // Prevent background scroll
 
+  modal.style.display = 'flex';
+  void modal.offsetWidth; // fuerza reflow
+  modal.classList.add('active');
+
+  document.body.style.overflow = 'hidden';
   updateZoomUI();
   initZoomSwipe();
 }
@@ -1523,6 +1524,9 @@ function closeZoom() {
   const modal = document.getElementById('zoom-modal');
   modal.classList.remove('active');
   document.body.style.overflow = '';
+  setTimeout(() => {
+    modal.style.display = 'none';
+  }, 300);
 }
 
 function toggleZoom(e) {

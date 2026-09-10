@@ -1928,12 +1928,13 @@ body {
     align-items: center;
     justify-content: center;
     opacity: 0;
+    pointer-events: none;
     transition: opacity 0.3s ease;
 }
 
 .zoom-modal.active {
-    display: flex;
     opacity: 1;
+    pointer-events: auto;
 }
 
 .zoom-close {
