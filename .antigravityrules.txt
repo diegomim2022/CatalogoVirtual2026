@@ -27,3 +27,8 @@
 
 7. PARSEO DE GOOGLE SHEETS (CSV):
    - Al parsear los datos CSV de Google Sheets en la aplicación (ej. app.js), asegúrate siempre de forzar la clave 'ID Producto' al primer encabezado si éste viene vacío. Esto es crucial para prevenir colisiones con otras posibles columnas vacías al final de la hoja y evitar que los productos dejen de renderizarse en el catálogo.
+
+8. MODAL DE ZOOM, LIGHTBOX Y ESTRUCTURA DE FOTOS:
+   - Toda lectura de imágenes de producto debe usar la función utilitaria getProductPhotos(product), la cual prioriza el array product.photos (Foto, Foto2, Foto3, Foto4) con fallback a product.photo. No asumir nombres como images o gallery.
+   - En renderDetail(), al asociar eventos onclick a las imágenes de galería dentro de bucles, congelar siempre el índice en una constante local de bloque (ej. const currentIdx = photoIndex;) para prevenir bugs de closure que provoquen peticiones a urls '.../undefined'.
+   - En modales con transición de opacidad (display: none/flex), forzar reflow (void modal.offsetWidth) tras display='flex' antes de agregar la clase 'active', y retrasar display='none' con setTimeout tras removerla.
