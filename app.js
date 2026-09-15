@@ -199,9 +199,9 @@ async function fetchSheetData(gid) {
     }
   } catch (e) { /* sessionStorage not available, proceed */ }
 
-  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${gid}`;
+  const url = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${gid}&t=${Date.now()}`;
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error('Network response was not ok');
     const text = await response.text();
     const data = parseCSV(text);
