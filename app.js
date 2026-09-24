@@ -2,188 +2,41 @@
 // CATÁLOGO DIGITAL DE PEDIDOS
 // ============================
 
-// ---- CONFIGURATION ----
-const CONFIG = {
-  vendorPhone: '573158512091', // Número WhatsApp del vendedor (admin)
-  currency: 'COP',
-  appName: 'Catalogo de Productos',
-  sheetId: '1QMPMUbokrU0fHHL1EG2XTWfk6Cg5ITah_rttYDsMvyw',
-  gids: {
-    productos: '0',
-    clientes: '1788392842'
-  },
-  cacheExpiry: 5 * 60 * 1000, // 5 minutos de caché
-  productsPerPage: 20, // productos por lote de paginación
-  adminPin: '1324', // Clave de acceso al panel admin
-  analyticsWebAppUrl: 'https://script.google.com/macros/s/AKfycby_UuX0XEZ-bH1DSQtMjEOvN_Md5-XTSoWECyX9ingLZWaSWpUGjMQmCykBYvKeG4DVgQ/exec', // URL del Google Apps Script Web App
-  sessionExpiry: 48 * 60 * 60 * 1000 // 48 horas para persistencia de sesión y carrito
-};
-
-// ---- SECURITY: HTML ESCAPE ----
-function escapeHtml(str) {
-  if (str == null) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-// ---- UTILITY: DEBOUNCE ----
-function debounce(fn, delay) {
-  let timer;
-  return function (...args) {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn.apply(this, args), delay);
-  };
-}
-
-// ---- IMAGE ERROR FALLBACK ----
-const IMG_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect fill="#f0f0f3" width="400" height="400"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-family="sans-serif" font-size="48">📷</text><text x="50%" y="62%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-family="sans-serif" font-size="14">Imagen no disponible</text></svg>');
-
-function handleImgError(img) {
-  img.onerror = null; // prevent infinite loop
-  
-  const driveId = img.getAttribute('data-drive-id');
-  const attempts = parseInt(img.getAttribute('data-error-attempts') || '0');
-  
-  if (driveId && attempts < 2) {
-    img.setAttribute('data-error-attempts', (attempts + 1).toString());
-    
-    // Rotar entre formatos: 1. lh3 (ya falló) -> 2. thumbnail -> 3. uc (direct download)
-    if (attempts === 0) {
-      img.src = `https://drive.google.com/thumbnail?id=${driveId}&sz=w1000`;
-      img.onerror = () => handleImgError(img);
-      return;
-    } else if (attempts === 1) {
-      // Direct download link as last resort (often bypasses some thumbnail restrictions)
-      img.src = `https://drive.google.com/uc?id=${driveId}&export=view`;
-      img.onerror = () => handleImgError(img);
-      return;
-    }
-  }
-
-  img.src = IMG_PLACEHOLDER;
-}
-
-// ---- DEMO DATA ----
-let PRODUCTS = [];
-
-let DEMO_CLIENTS = [];
-
-let CATEGORIES = [
-  { id: 'all', label: 'Todos', icon: '🏷️' }
-];
-
-const CATEGORY_ICONS_MAP = {
-  'ropa': '👕', 'vestidor': '👗', 'camisa': '👔', 'pantalon': '👖',
-  'zapato': '👟', 'calzado': '👞', 'tenis': '👟',
-  'bolso': '👜', 'maleta': '💼', 'morral': '🎒',
-  'reloj': '⌚', 'watch': '⌚', 'joya': '💍', 'accesorio': '👓',
-  'audio': '🎧', 'sonido': '🔊', 'parlante': '📻', 'audifono': '🎧',
-  'hogar': '🏠', 'casa': '🏡', 'cocina': '🍳', 'mueble': '🛋️',
-  'belleza': '💄', 'maquillaje': '💅', 'perfume': '✨', 'cuidado': '🧴',
-  'tecnologia': '💻', 'celular': '📱', 'computador': '💻', 'electronica': '🔌',
-  'tablet': '📱', 'ipad': '📱',
-  'deporte': '⚽', 'gym': '🏋️', 'entrenamiento': '🚴',
-  'juguete': '🧸', 'niño': '👶', 'bebe': '🍼',
-  'mascota': '🐶', 'perro': '🐱', 'alimento': '🦴',
-  'herramienta': '🛠️', 'construccion': '🏗️', 'ferreteria': '🔨',
-  'papeleria': '📝', 'oficina': '📎', 'util': '📏',
-  'salud': '💊', 'medicina': '🩺', 'bienestar': '🧘',
-  'comida': '🍔', 'bebida': '🥤', 'snack': '🍿',
-  'carro': '🚗', 'moto': '🏍️', 'vehiculo': '🚜',
-  'cable': '🔌', 'power': '⚡', 'energia': '🔋',
-  'adaptador': '🔌', 'cargador': '🔌', 'plug': '🔌',
-  'gamer': '🎮', 'juego': '🎮', 'consola': '🎮',
-  'nanocarbon': '🛡️', 'protector': '🛡️', 'vidrio': '💎',
-  'gadget': '⚙️', 'gatget': '⚙️', 'herramienta': '🛠️'
-};
-
-function getAutoIcon(categoryName) {
-  if (!categoryName) return '📦';
-  const name = categoryName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  // Buscar coincidencia exacta primero
-  if (CATEGORY_ICONS_MAP[name]) return CATEGORY_ICONS_MAP[name];
-
-  // Buscar por palabra clave parcial
-  for (const [key, icon] of Object.entries(CATEGORY_ICONS_MAP)) {
-    if (name.includes(key)) return icon;
-  }
-
-  return '📦'; // Default
-}
-
-// ---- APP STATE ----
-const state = {
-  currentUser: null,
-  currentScreen: 'login',
-  cart: [],
-  orders: JSON.parse(localStorage.getItem('orders') || '[]'),
-  selectedCategory: 'all',
-  searchQuery: '',
-  selectedProduct: null,
-  detailQty: 1,
-  currentDetailImageIndex: 0,
-  currentZoomImageIndex: 0,
-  currentPromoIndex: 0,
-  isLoading: false,
-  visibleProductCount: CONFIG.productsPerPage, // paginación
-  paginationObserver: null
-};
-
-// ---- PERSISTENCE UTILS ----
-
-function saveToStorage(key, data) {
-  try {
-    const record = {
-      timestamp: Date.now(),
-      data: data
-    };
-    localStorage.setItem(key, JSON.stringify(record));
-  } catch (e) {
-    console.warn(`Error saving to storage (${key}):`, e);
-  }
-}
-
-function getFromStorage(key) {
-  try {
-    const recordStr = localStorage.getItem(key);
-    if (!recordStr) return null;
-    const record = JSON.parse(recordStr);
-    const now = Date.now();
-    
-    // Check expiration
-    if (now - record.timestamp > CONFIG.sessionExpiry) {
-      localStorage.removeItem(key);
-      return null;
-    }
-    
-    return record.data;
-  } catch (e) {
-    console.warn(`Error reading from storage (${key}):`, e);
-    return null;
-  }
-}
-
-function persistSession() {
-  saveToStorage('catalogo_session', {
-    currentUser: state.currentUser,
-    cart: state.cart
-  });
-}
-
-function restoreSession() {
-  const saved = getFromStorage('catalogo_session');
-  if (saved) {
-    state.currentUser = saved.currentUser;
-    state.cart = saved.cart || [];
-    return true;
-  }
-  return false;
-}
+import { CONFIG, IMG_PLACEHOLDER } from './js/config.js';
+import {
+  escapeHtml,
+  debounce,
+  formatCurrency,
+  formatDate,
+  generateOrderId,
+  shuffleArray,
+  showToast,
+  handleImgError,
+  getDriveId,
+  transformDriveUrl,
+  transformDrivePreviewUrl,
+  getProductPhotos,
+  getDetailMedia,
+  getProductPrice,
+  getAutoIcon,
+  CATEGORY_ICONS_MAP
+} from './js/utils.js';
+import {
+  saveToStorage,
+  getFromStorage,
+  persistSession,
+  restoreSession,
+  saveOrders
+} from './js/storage.js';
+import {
+  state,
+  PRODUCTS,
+  CATEGORIES,
+  DEMO_CLIENTS,
+  setProducts,
+  setCategories,
+  setClients
+} from './js/state.js';
 
 // ---- UTILS & SYNC ----
 
@@ -234,72 +87,7 @@ function showNetworkError() {
   }
 }
 
-function transformDriveUrl(url) {
-  if (!url || !url.includes('drive.google.com') && !url.includes('lh3.googleusercontent.com')) return url;
 
-  // Extraer ID del archivo de diferentes formatos de Drive
-  const regex = /\/d\/([^\/]+)(\/|$)|id=([^\&]+)/;
-  const match = url.match(regex);
-  const id = match ? (match[1] || match[3]) : null;
-
-  if (id) {
-    // Usar el dominio lh3 que suele ser más rápido y estable para miniaturas
-    // El sufijo =w800 permite redimensionar la imagen en el servidor
-    return `https://lh3.googleusercontent.com/d/${id}=w800`;
-  }
-  return url;
-}
-
-function getDriveId(url) {
-  if (!url) return null;
-  const regex = /\/d\/([^\/=]+)(\/|=|$)|\/d\/([^\/]+)(\/|$)|id=([^\&]+)/;
-  const match = url.match(regex);
-  return match ? (match[1] || match[3] || match[5]) : null;
-}
-
-function transformDrivePreviewUrl(url) {
-  const id = getDriveId(url);
-  if (!id) return url;
-  // Reproductor embebido de Google Drive (funciona en cualquier dispositivo, sin login)
-  return `https://drive.google.com/file/d/${id}/preview`;
-}
-
-function getProductPhotos(product) {
-  if (!product) return [];
-  if (Array.isArray(product.photos) && product.photos.length > 0) {
-    const valid = product.photos.filter(f => f && typeof f === 'string' && f.trim() !== '');
-    if (valid.length > 0) return valid;
-  }
-  if (product.photo && typeof product.photo === 'string' && product.photo.trim() !== '') {
-    return [product.photo];
-  }
-  return [];
-}
-
-function getDetailMedia(product) {
-  const photos = getProductPhotos(product);
-  const media = photos.map(src => ({ type: 'image', src }));
-  if (product.video) {
-    const driveId = getDriveId(product.video);
-    if (driveId) {
-      // Video de Google Drive → reproductor embebido de Google
-      media.push({
-        type: 'video',
-        native: false,
-        preview: transformDrivePreviewUrl(product.video)
-      });
-    } else {
-      // URL directa (repo u otro host) → reproductor nativo, sin barras negras
-      media.push({
-        type: 'video',
-        native: true,
-        src: product.video,
-        poster: product.photo
-      });
-    }
-  }
-  return media;
-}
 
 function parseCSV(csv) {
   if (!csv) return [];
@@ -343,13 +131,7 @@ function parseCSV(csv) {
   });
 }
 
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
+
 
 function renderSkeletons() {
   const container = document.getElementById('products-grid');
@@ -379,7 +161,7 @@ async function initData() {
   ]);
 
   if (sheetProducts && sheetProducts.length > 0) {
-    PRODUCTS = sheetProducts
+    setProducts(sheetProducts
       .filter(p => p.idproducto || p['ID Producto'] || p.id || p[''])
       .map(p => {
         const getV = (k) => {
@@ -402,11 +184,11 @@ async function initData() {
           retailPrice: parseInt(getV('Precio Usuario Final').toString().replace(/\D/g, '')) || 0,
           isPromo: ['si', 'true', 'yes', '1'].includes(getV('Oferta').toLowerCase().trim()) || ['si', 'true', 'yes', '1'].includes(getV('Promo').toLowerCase().trim())
         };
-      });
+      }));
 
     // Generar categorías dinámicas
     const uniqueCats = [...new Set(PRODUCTS.map(p => p.category))].filter(c => c && c !== 'Otros');
-    CATEGORIES = [
+    setCategories([
       { id: 'all', label: 'Todos', icon: '🏷️' },
       ...uniqueCats.map(cat => ({
         id: cat,
@@ -414,19 +196,19 @@ async function initData() {
         icon: getAutoIcon(cat)
       })),
       { id: 'Otros', label: 'Otros', icon: '✨' }
-    ];
+    ]);
 
     // Aleatorizar el orden de los productos
     shuffleArray(PRODUCTS);
   }
 
   if (sheetClients && sheetClients.length > 0) {
-    DEMO_CLIENTS = sheetClients.map(c => ({
+    setClients(sheetClients.map(c => ({
       id: c['Identificacion']?.toString().trim(),
       name: c['Nombre'],
       type: c['Tipo Cliente'],
       phone: c['Telefono WhatsApp']?.toString().trim() || ''
-    }));
+    })));
   }
 
   state.isLoading = false;
@@ -478,50 +260,7 @@ function startPromoRotation() {
 
 // initData is called from the consolidated DOMContentLoaded listener at the bottom
 
-// ---- HELPERS ----
-function formatCurrency(amount) {
-  return '$' + amount.toLocaleString('es-CO');
-}
 
-function generateOrderId() {
-  // Use timestamp-based ID to avoid collisions
-  const now = Date.now();
-  const random = Math.floor(Math.random() * 1000);
-  return 'PED-' + now.toString(36).toUpperCase().slice(-5) + random.toString(36).toUpperCase().padStart(2, '0');
-}
-
-function formatDate(date) {
-  try {
-    const d = new Date(date);
-    if (isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch(e) {
-    return '—';
-  }
-}
-
-function getProductPrice(product) {
-  if (!state.currentUser) return product.retailPrice;
-  return state.currentUser.type === 'Mayorista' ? product.wholesalePrice : product.retailPrice;
-}
-
-function saveOrders() {
-  localStorage.setItem('orders', JSON.stringify(state.orders));
-}
-
-function showToast(message, type = 'success') {
-  const toast = document.getElementById('toast');
-  toast.className = 'toast ' + type;
-  toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️'}</span> ${message}`;
-  setTimeout(() => toast.classList.add('show'), 10);
-  setTimeout(() => toast.classList.remove('show'), 3000);
-}
 
 function getCartCount() {
   return state.cart.reduce((sum, item) => sum + item.qty, 0);
