@@ -112,18 +112,6 @@
         <div class="search-bar">
           <span class="search-icon">🔍</span>
           <input type="text" id="search-input" placeholder="Buscar productos, referencias...">
-        </div>
-        <div class="quick-filters" style="display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; scrollbar-width: none;">
-          <button class="filter-btn" style="border: 1px solid var(--border); border-radius: var(--radius-full); padding: 6px 12px; font-size: 12px; font-weight: 500; background: var(--bg-card); color: var(--text-secondary); cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
-            <span>🏷️</span> Marca ▾
-          </button>
-          <button class="filter-btn" style="border: 1px solid var(--border); border-radius: var(--radius-full); padding: 6px 12px; font-size: 12px; font-weight: 500; background: var(--bg-card); color: var(--text-secondary); cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
-            <span>🔌</span> Conector ▾
-          </button>
-          <button class="filter-btn" style="border: 1px solid var(--border); border-radius: var(--radius-full); padding: 6px 12px; font-size: 12px; font-weight: 500; background: var(--bg-card); color: var(--text-secondary); cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
-            <span>⚡</span> Carga rápida
-          </button>
-        </div>
       </div>
 
       <!-- Promo banner -->
@@ -517,8 +505,17 @@
   </div>
 
   <script>
-    // Register Service Worker for offline support
+    // Register Service Worker for offline support and auto-reload on update
     if ('serviceWorker' in navigator) {
+      const hadController = !!navigator.serviceWorker.controller;
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadController && !refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js').catch(() => { });
       });
@@ -526,7 +523,7 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="analytics.js?v=2.5"></script>
-  <script src="app.js?v=2.5"></script>
+  <script src="app.js?v=2.9"></script>
   <script src="nano.js?v=2.5"></script>
 </body>
 

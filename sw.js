@@ -1,5 +1,5 @@
 // Service Worker — Catálogo Digital de Pedidos
-const CACHE_NAME = 'catalogo-v2.17';
+const CACHE_NAME = 'catalogo-v2.21';
 const STATIC_ASSETS = [
     './',
     'index.html',
@@ -10,7 +10,7 @@ const STATIC_ASSETS = [
     'manifest.json'
 ];
 
-// Install: cache static assets
+// Install: cache static assets and skip waiting
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
@@ -20,7 +20,7 @@ self.addEventListener('install', (event) => {
     self.skipWaiting();
 });
 
-// Activate: clean up old caches
+// Activate: clean up old caches and claim clients immediately
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((keys) => {
@@ -32,43 +32,60 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch: network-first for API calls, cache-first for static assets
+// Fetch: strategy selection
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
-    // Don't cache/intercept Google Drive media (videos): both the direct content
-    // URL and the uc download redirect must reach the browser untouched.
+    // Don't intercept Google Drive direct media downloads/videos
     if (url.hostname === 'drive.usercontent.google.com' ||
         (url.hostname === 'drive.google.com' && url.searchParams.get('export') === 'download')) {
-        return; // let the browser handle it as a normal network request
+        return;
     }
 
-    // Network-first for Google Sheets data
-    if (url.hostname === 'docs.google.com') {
+    // 1. NUNCA cachear respuestas de Google Sheets ni APIs (siempre red)
+    if (url.hostname === 'docs.google.com' || url.hostname === 'script.google.com') {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
+    // 2. Network-first para navegación/HTML, .js y .css
+    const isHtml = event.request.mode === 'navigate' ||
+                   url.pathname.endsWith('/') ||
+                   url.pathname.endsWith('.html');
+    const isCode = url.pathname.endsWith('.js') ||
+                   url.pathname.endsWith('.css') ||
+                   event.request.destination === 'script' ||
+                   event.request.destination === 'style';
+
+    if (isHtml || isCode) {
         event.respondWith(
             fetch(event.request)
                 .then((response) => {
-                    // Cache a copy of the response
-                    const clone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+                    if (response && response.status === 200) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+                    }
                     return response;
                 })
-                .catch(() => caches.match(event.request))
+                .catch(async () => {
+                    const cached = await caches.match(event.request);
+                    if (cached) return cached;
+                    if (isHtml) return caches.match('index.html');
+                })
         );
         return;
     }
 
-    // Cache-first for static assets and images
+    // 3. Cache-first solo para imágenes, videos, íconos y fuentes
     event.respondWith(
         caches.match(event.request).then((cached) => {
             if (cached) return cached;
             return fetch(event.request).then((response) => {
                 const isGoogleDrive = url.hostname.includes('drive.google.com') || 
-                                    url.hostname.includes('lh3.googleusercontent.com');
+                                      url.hostname.includes('lh3.googleusercontent.com');
                 
-                // Cache successful responses or opaque responses from Google Drive
                 const isCacheable = (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) ||
-                                  (isGoogleDrive && response.type === 'opaque');
+                                    (isGoogleDrive && response.type === 'opaque');
 
                 if (isCacheable) {
                     const clone = response.clone();

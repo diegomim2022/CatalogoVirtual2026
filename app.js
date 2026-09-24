@@ -410,6 +410,7 @@ async function initData() {
           name: getV('Nombre') || 'Sin nombre',
           description: getV('Descripcion') || '',
           category: getV('Categoria') || 'Otros',
+          brand: getV('Marca') || getV('Brand') || '',
           stock: parseInt(getV('Stock Disponible').toString().replace(/\D/g, '')) || 0,
           wholesalePrice: parseInt(getV('Precio Mayorista').toString().replace(/\D/g, '')) || 0,
           retailPrice: parseInt(getV('Precio Usuario Final').toString().replace(/\D/g, '')) || 0,
@@ -727,20 +728,34 @@ function renderHeader() {
 function getFilteredProducts() {
   let products = [...PRODUCTS];
 
-  const normalize = (s) => (s || "").toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const normalize = (s) => (s || "").toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
-  if (state.selectedCategory && state.selectedCategory !== 'all') {
+  const searchInput = document.getElementById('search-input');
+  const query = (state.searchQuery || (searchInput ? searchInput.value : "")).trim();
+  const hasSearch = query.length > 0;
+
+  // 1. Si NO hay texto de búsqueda, filtrar por la categoría seleccionada
+  if (!hasSearch && state.selectedCategory && state.selectedCategory !== 'all') {
     const selCat = normalize(state.selectedCategory);
     products = products.filter(p => normalize(p.category) === selCat);
   }
 
-  if (state.searchQuery) {
-    const q = normalize(state.searchQuery);
-    products = products.filter(p =>
-      normalize(p.name).includes(q) ||
-      normalize(p.reference).includes(q) ||
-      normalize(p.description).includes(q)
-    );
+  // 2. Si hay texto en el buscador: búsqueda global ignorando la categoría activa
+  // Compara sin mayúsculas ni tildes contra nombre, SKU (id y referencia), marca y categoría
+  if (hasSearch) {
+    const q = normalize(query);
+    const words = q.split(/\s+/).filter(Boolean);
+    products = products.filter(p => {
+      const name = normalize(p.name);
+      const sku = normalize(p.id);
+      const ref = normalize(p.reference);
+      const brand = normalize(p.brand || p.marca);
+      const category = normalize(p.category);
+      const desc = normalize(p.description);
+
+      const target = `${name} ${sku} ${ref} ${brand} ${category} ${desc}`;
+      return words.every(word => target.includes(word));
+    });
   }
 
   return products;
@@ -817,7 +832,7 @@ function renderCategories() {
     const safeId = escapeHtml(cat.id);
     const safeLabel = escapeHtml(cat.label);
     return `
-    <div class="category-chip ${state.selectedCategory === cat.id ? 'active' : ''}" onclick="selectCategory('${safeId}')">
+    <div class="category-chip ${state.selectedCategory === cat.id ? 'active' : ''}" data-cat-id="${safeId}" onclick="selectCategory('${safeId}')">
       <div class="cat-icon"><span>${cat.icon}</span></div>
       <span class="cat-label">${safeLabel}</span>
     </div>
@@ -826,8 +841,31 @@ function renderCategories() {
 }
 
 function selectCategory(catId) {
+  // Si el usuario hace clic en una categoría mientras hay texto en el buscador,
+  // limpiar el input de búsqueda y filtrar solo por esa categoría
+  const searchInput = document.getElementById('search-input');
+  if (searchInput && searchInput.value) {
+    searchInput.value = '';
+  }
+  state.searchQuery = '';
   state.selectedCategory = catId;
   renderCatalog();
+}
+
+function setCategoryChipVisualToAll() {
+  state.selectedCategory = 'all';
+  const container = document.getElementById('categories-list');
+  if (container) {
+    const chips = container.querySelectorAll('.category-chip');
+    chips.forEach((chip, i) => {
+      const catId = chip.getAttribute('data-cat-id');
+      if (catId) {
+        chip.classList.toggle('active', catId === 'all');
+      } else {
+        chip.classList.toggle('active', i === 0);
+      }
+    });
+  }
 }
 
 const handleSearchDebounced = debounce(function () {
@@ -837,6 +875,10 @@ const handleSearchDebounced = debounce(function () {
 
 function handleSearch(e) {
   state.searchQuery = e.target.value;
+  // Si el input de búsqueda tiene texto, cambiar visualmente a "Todos"
+  if (state.searchQuery.trim().length > 0) {
+    setCategoryChipVisualToAll();
+  }
   handleSearchDebounced();
 }
 
@@ -1731,9 +1773,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Login flow
   initLogin();
 
-  // Search with debounce
+  // Search with debounce and immediate Enter support
   const searchInput = document.getElementById('search-input');
-  if (searchInput) searchInput.addEventListener('input', handleSearch);
+  if (searchInput) {
+    searchInput.addEventListener('input', handleSearch);
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        state.searchQuery = searchInput.value;
+        if (state.searchQuery.trim().length > 0) {
+          setCategoryChipVisualToAll();
+        }
+        state.visibleProductCount = CONFIG.productsPerPage;
+        renderProducts();
+        searchInput.blur();
+      }
+    });
+  }
 
   // Navigation
   document.querySelectorAll('.nav-item').forEach(item => {
