@@ -1,5 +1,5 @@
 // Service Worker — Catálogo Digital de Pedidos
-const CACHE_NAME = 'catalogo-v2.21';
+const CACHE_NAME = 'catalogo-v3.0';
 const STATIC_ASSETS = [
     './',
     'index.html',
@@ -34,6 +34,9 @@ self.addEventListener('activate', (event) => {
 
 // Fetch: strategy selection
 self.addEventListener('fetch', (event) => {
+    if (event.request.method !== 'GET') return;
+    if (!event.request.url.startsWith('http')) return;
+
     const url = new URL(event.request.url);
 
     // Don't intercept Google Drive direct media downloads/videos

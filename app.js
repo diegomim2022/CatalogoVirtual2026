@@ -257,25 +257,11 @@ function getDriveId(url) {
   return match ? (match[1] || match[3] || match[5]) : null;
 }
 
-function transformDriveVideoUrl(url) {
-  const id = getDriveId(url);
-  if (!id) return url;
-  // URL directa, sin redirect y con content-disposition:inline (máxima compatibilidad con <video>).
-  // OJO: no usar &export=download porque fuerza content-disposition:attachment (descarga, no reproduce).
-  return `https://drive.usercontent.google.com/download?id=${id}`;
-}
-
 function transformDrivePreviewUrl(url) {
   const id = getDriveId(url);
   if (!id) return url;
   // Reproductor embebido de Google Drive (funciona en cualquier dispositivo, sin login)
   return `https://drive.google.com/file/d/${id}/preview`;
-}
-
-function transformDriveVideoPoster(url) {
-  const id = getDriveId(url);
-  if (!id) return url;
-  return `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
 }
 
 function getProductPhotos(product) {
@@ -1200,32 +1186,33 @@ document.addEventListener('touchend', function (event) {
   let touchStartTime = 0;
 
   const detailScreen = document.getElementById('screen-detail');
+  if (detailScreen) {
+    detailScreen.addEventListener('touchstart', function (e) {
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+      touchStartTime = Date.now();
+    }, { passive: true });
 
-  detailScreen.addEventListener('touchstart', function (e) {
-    touchStartX = e.changedTouches[0].clientX;
-    touchStartY = e.changedTouches[0].clientY;
-    touchStartTime = Date.now();
-  }, { passive: true });
+    detailScreen.addEventListener('touchend', function (e) {
+      if (state.currentScreen !== 'detail') return;
 
-  detailScreen.addEventListener('touchend', function (e) {
-    if (state.currentScreen !== 'detail') return;
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = Math.abs(touchEndY - touchStartY);
+      const elapsed = Date.now() - touchStartTime;
 
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaX = touchEndX - touchStartX;
-    const deltaY = Math.abs(touchEndY - touchStartY);
-    const elapsed = Date.now() - touchStartTime;
-
-    // Only trigger if: swipe right, enough distance, mostly horizontal, fast enough
-    if (deltaX > 80 && deltaY < 100 && elapsed < 500) {
-      // If swiping on the gallery, only go back if at the first image
-      const gallery = document.getElementById('gallery-wrapper');
-      if (gallery && gallery.contains(e.target) && state.currentDetailImageIndex > 0) {
-        return; // Let the gallery handle the swipe
+      // Only trigger if: swipe right, enough distance, mostly horizontal, fast enough
+      if (deltaX > 80 && deltaY < 100 && elapsed < 500) {
+        // If swiping on the gallery, only go back if at the first image
+        const gallery = document.getElementById('gallery-wrapper');
+        if (gallery && gallery.contains(e.target) && state.currentDetailImageIndex > 0) {
+          return; // Let the gallery handle the swipe
+        }
+        navigateTo('home');
       }
-      navigateTo('home');
-    }
-  }, { passive: true });
+    }, { passive: true });
+  }
 })();
 
 function updateDetailDots(count) {
@@ -2106,3 +2093,48 @@ function sendPromoWhatsApp() {
   if (!msg) return;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 }
+
+// ---- PUENTE GLOBAL PARA ES MODULES ----
+// Expone las funciones invocadas desde HTML inline (onclick, onerror, etc.)
+// y templates generados dinámicamente con innerHTML.
+Object.assign(window, {
+  handleImgError,
+  openProduct,
+  quickAddToCart,
+  setDetailImage,
+  changeDetailImage,
+  changeDetailQty,
+  orderSingleProductWhatsApp,
+  addToCartFromDetail,
+  clearCart,
+  removeFromCart,
+  changeCartQty,
+  goToConfirmation,
+  cancelOrder,
+  sendOrder,
+  toggleOrderDetails,
+  closeSuccessOverlay,
+  openZoom,
+  closeZoom,
+  toggleZoom,
+  navigateTo,
+  logout,
+  selectCategory,
+  renderPromoBanner,
+  renderAnalytics,
+  copyPromoMessage,
+  sendPromoWhatsApp,
+  generatePromoMessage,
+  requestAdminAccess,
+  closeAdminPinModal,
+  showToast,
+  getFilteredProducts
+});
+
+Object.defineProperties(window, {
+  state:      { get: () => state, configurable: true },
+  CONFIG:     { get: () => CONFIG, configurable: true },
+  PRODUCTS:   { get: () => PRODUCTS, configurable: true },
+  CATEGORIES: { get: () => CATEGORIES, configurable: true }
+});
+
