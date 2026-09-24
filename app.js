@@ -8,7 +8,6 @@ import {
   debounce,
   formatCurrency,
   formatDate,
-  generateOrderId,
   shuffleArray,
   showToast,
   handleImgError,
@@ -25,8 +24,7 @@ import {
   saveToStorage,
   getFromStorage,
   persistSession,
-  restoreSession,
-  saveOrders
+  restoreSession
 } from './js/storage.js';
 import {
   state,
@@ -37,6 +35,38 @@ import {
   setCategories,
   setClients
 } from './js/state.js';
+import {
+  getCartCount,
+  getCartTotal,
+  updateCartBadge,
+  addToCartFromDetail,
+  quickAddToCart,
+  renderCart,
+  changeCartQty,
+  removeFromCart,
+  clearCart
+} from './js/cart.js';
+import {
+  goToConfirmation,
+  renderConfirmation,
+  cancelOrder,
+  sendOrder,
+  generateVendorMessage,
+  generateClientMessage,
+  showSuccessOverlay,
+  closeSuccessOverlay,
+  renderOrders,
+  toggleOrderDetails
+} from './js/orders.js';
+import {
+  openZoom,
+  updateZoomUI,
+  changeZoomImage,
+  closeZoom,
+  toggleZoom,
+  initZoomSwipe,
+  handleZoomSwipe
+} from './js/zoom.js';
 
 // ---- UTILS & SYNC ----
 
@@ -262,13 +292,7 @@ function startPromoRotation() {
 
 
 
-function getCartCount() {
-  return state.cart.reduce((sum, item) => sum + item.qty, 0);
-}
 
-function getCartTotal() {
-  return state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-}
 
 // ---- NAVIGATION ----
 function navigateTo(screenId) {
@@ -1054,445 +1078,7 @@ function orderSingleProductWhatsApp() {
   window.open(waUrl, '_blank');
 }
 
-function addToCartFromDetail() {
-  const product = state.selectedProduct;
-  if (!product || product.stock === 0) return;
 
-  const existing = state.cart.find(i => i.productId === product.id);
-  const currentQty = existing ? existing.qty : 0;
-
-  if (currentQty + state.detailQty > product.stock) {
-    showToast(`Stock máximo: ${product.stock} unidades`, 'warning');
-    return;
-  }
-
-  if (existing) {
-    existing.qty += state.detailQty;
-  } else {
-    state.cart.push({
-      productId: product.id,
-      name: product.name,
-      reference: product.reference,
-      photo: product.photo,
-      price: getProductPrice(product),
-      qty: state.detailQty,
-      maxStock: product.stock
-    });
-  }
-
-  updateCartBadge();
-  showToast(`${product.name} agregado al carrito`);
-  persistSession();
-  navigateTo('home');
-}
-
-function quickAddToCart(productId) {
-  const product = PRODUCTS.find(p => p.id === productId);
-  if (!product || product.stock === 0) return;
-
-  const existing = state.cart.find(i => i.productId === product.id);
-
-  if (existing) {
-    if (existing.qty >= product.stock) {
-      showToast('Stock máximo alcanzado', 'warning');
-      return;
-    }
-    existing.qty++;
-  } else {
-    state.cart.push({
-      productId: product.id,
-      name: product.name,
-      reference: product.reference,
-      photo: product.photo,
-      price: getProductPrice(product),
-      qty: 1,
-      maxStock: product.stock
-    });
-  }
-
-  updateCartBadge();
-  showToast(`${product.name} agregado al carrito`);
-  persistSession();
-}
-
-// ---- CART ----
-function updateCartBadge() {
-  const badge = document.getElementById('cart-badge');
-  if (!badge) return;
-  const count = getCartCount();
-  badge.textContent = count;
-  badge.className = 'cart-badge' + (count > 0 ? ' show' : '');
-}
-
-function renderCart() {
-  const container = document.getElementById('cart-items');
-  const footer = document.getElementById('cart-footer');
-  const emptyState = document.getElementById('cart-empty');
-
-  if (state.cart.length === 0) {
-    if (container) container.innerHTML = '';
-    if (emptyState) emptyState.style.display = 'block';
-    if (footer) footer.style.display = 'none';
-    return;
-  }
-
-  if (emptyState) emptyState.style.display = 'none';
-  if (footer) footer.style.display = 'block';
-
-  container.innerHTML = state.cart.map((item, index) => {
-    const overStock = item.qty > item.maxStock;
-    const safeId = escapeHtml(item.productId);
-    const safeName = escapeHtml(item.name);
-    const safeRef = escapeHtml(item.reference);
-    const safePhoto = escapeHtml(item.photo);
-    return `
-      <div class="cart-item" style="animation-delay: ${index * 0.05}s">
-        <div class="cart-item-image">
-          <img src="${safePhoto}" alt="${safeName}" onerror="handleImgError(this)">
-        </div>
-        <div class="cart-item-details">
-          <div class="item-name">${safeName}</div>
-          <div class="item-ref">${safeRef}</div>
-          <div class="item-price">${formatCurrency(item.price * item.qty)}</div>
-          ${overStock ? '<div class="cart-stock-warning">⚠️ Excede stock disponible</div>' : ''}
-        </div>
-        <div class="cart-item-actions">
-          <button class="delete-btn" onclick="removeFromCart('${safeId}')" title="Eliminar">🗑️</button>
-          <div class="cart-item-qty">
-            <button onclick="changeCartQty('${safeId}', -1)">−</button>
-            <span>${item.qty}</span>
-            <button onclick="changeCartQty('${safeId}', 1)">+</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  // Update total
-  document.getElementById('cart-total').textContent = formatCurrency(getCartTotal());
-}
-
-function changeCartQty(productId, delta) {
-  const item = state.cart.find(i => i.productId === productId);
-  if (!item) return;
-
-  const newQty = item.qty + delta;
-  if (newQty < 1) {
-    removeFromCart(productId);
-    return;
-  }
-  if (newQty > item.maxStock) {
-    showToast(`Stock máximo: ${item.maxStock} unidades`, 'warning');
-    return;
-  }
-
-  item.qty = newQty;
-  renderCart();
-  updateCartBadge();
-  persistSession();
-}
-
-function removeFromCart(productId) {
-  state.cart = state.cart.filter(i => i.productId !== productId);
-  renderCart();
-  updateCartBadge();
-  persistSession();
-}
-
-function clearCart() {
-  if (state.cart.length === 0) return;
-  state.cart = [];
-  renderCart();
-  updateCartBadge();
-  persistSession();
-  showToast('Carrito vaciado');
-}
-
-// ---- ORDER CONFIRMATION ----
-function goToConfirmation() {
-  if (state.cart.length === 0) return;
-  navigateTo('confirm');
-}
-
-function renderConfirmation() {
-  const user = state.currentUser;
-  if (!user) return;
-
-  document.getElementById('confirm-client-name').textContent = user.name;
-  document.getElementById('confirm-client-id').textContent = user.id;
-  document.getElementById('confirm-client-type').textContent = user.type;
-  document.getElementById('confirm-date').textContent = formatDate(new Date());
-
-  const productsList = document.getElementById('confirm-products');
-  productsList.innerHTML = state.cart.map(item => {
-    const safeName = escapeHtml(item.name);
-    return `
-    <div class="confirm-product-item">
-      <div class="prod-info">
-        <div class="prod-name">${safeName}</div>
-        <div class="prod-qty">x${item.qty} · ${formatCurrency(item.price)} c/u</div>
-      </div>
-      <div class="prod-subtotal">${formatCurrency(item.price * item.qty)}</div>
-    </div>
-  `;
-  }).join('');
-
-  document.getElementById('confirm-total').textContent = formatCurrency(getCartTotal());
-}
-
-function cancelOrder() {
-  navigateTo('cart');
-}
-
-// ---- ZOOM LOGIC ----
-function openZoom(index) {
-  const product = state.selectedProduct;
-  if (!product) return;
-  const photos = getProductPhotos(product);
-  if (photos.length === 0) return;
-
-  const validIndex = (typeof index === 'number' && index >= 0 && index < photos.length) ? index : 0;
-  state.currentZoomImageIndex = validIndex;
-  const modal = document.getElementById('zoom-modal');
-  const zoomImg = document.getElementById('zoom-img');
-  zoomImg.src = photos[validIndex];
-  zoomImg.classList.remove('zoomed');
-
-  modal.style.display = 'flex';
-  void modal.offsetWidth; // fuerza reflow
-  modal.classList.add('active');
-
-  document.body.style.overflow = 'hidden';
-  updateZoomUI();
-  initZoomSwipe();
-}
-
-function updateZoomUI() {
-  const product = state.selectedProduct;
-  if (!product) return;
-  const photos = getProductPhotos(product);
-  const total = photos.length;
-  const current = state.currentZoomImageIndex;
-
-  // Update counter
-  const counterEl = document.getElementById('zoom-counter');
-  if (counterEl) {
-    counterEl.textContent = `${current + 1} / ${total}`;
-    counterEl.style.display = total <= 1 ? 'none' : 'block';
-  }
-}
-
-function changeZoomImage(delta) {
-  const product = state.selectedProduct;
-  if (!product) return;
-  const photos = getProductPhotos(product);
-  const total = photos.length;
-  if (total <= 1) return;
-
-  let newIndex = state.currentZoomImageIndex + delta;
-  if (newIndex < 0) newIndex = total - 1;
-  if (newIndex >= total) newIndex = 0;
-
-  state.currentZoomImageIndex = newIndex;
-  const zoomImg = document.getElementById('zoom-img');
-
-  // Smooth transition
-  zoomImg.style.opacity = '0';
-  setTimeout(() => {
-    zoomImg.src = photos[newIndex];
-    zoomImg.classList.remove('zoomed');
-    zoomImg.style.opacity = '1';
-    updateZoomUI();
-  }, 150);
-}
-
-function closeZoom() {
-  const modal = document.getElementById('zoom-modal');
-  modal.classList.remove('active');
-  document.body.style.overflow = '';
-  setTimeout(() => {
-    modal.style.display = 'none';
-  }, 300);
-}
-
-function toggleZoom(e) {
-  e.stopPropagation();
-  const zoomImg = document.getElementById('zoom-img');
-  zoomImg.classList.toggle('zoomed');
-}
-
-// Swipe logic for zoom modal
-let zoomTouchStartX = 0;
-let zoomTouchEndX = 0;
-
-function initZoomSwipe() {
-  const modal = document.getElementById('zoom-modal');
-  modal.ontouchstart = (e) => {
-    zoomTouchStartX = e.changedTouches[0].screenX;
-  };
-  modal.ontouchend = (e) => {
-    zoomTouchEndX = e.changedTouches[0].screenX;
-    handleZoomSwipe();
-  };
-}
-
-function handleZoomSwipe() {
-  const diff = zoomTouchStartX - zoomTouchEndX;
-  if (Math.abs(diff) > 50) { // Threshold
-    if (diff > 0) {
-      changeZoomImage(1); // Swipe left -> Next
-    } else {
-      changeZoomImage(-1); // Swipe right -> Prev
-    }
-  }
-}
-
-// Close zoom modal on Esc key
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeZoom();
-});
-
-function sendOrder() {
-  const user = state.currentUser;
-  if (!user || state.cart.length === 0) return;
-
-  const orderId = generateOrderId();
-  const date = new Date().toISOString();
-  const total = getCartTotal();
-
-  // Save order
-  const order = {
-    id: orderId,
-    clientId: user.id,
-    clientName: user.name,
-    clientType: user.type,
-    clientPhone: user.phone,
-    date: date,
-    status: 'Pendiente',
-    total: total,
-    items: state.cart.map(item => ({
-      productId: item.productId,
-      name: item.name,
-      reference: item.reference,
-      qty: item.qty,
-      price: item.price,
-      subtotal: item.price * item.qty
-    }))
-  };
-
-  state.orders.push(order);
-  saveOrders();
-
-  // Generate WhatsApp message for the vendor
-  const vendorMessage = generateVendorMessage(order);
-  const waUrl = `https://wa.me/${CONFIG.vendorPhone}?text=${encodeURIComponent(vendorMessage)}`;
-
-  // Show success overlay
-  showSuccessOverlay(order, waUrl);
-
-  // Clear cart
-  state.cart = [];
-  updateCartBadge();
-  persistSession();
-}
-
-function generateVendorMessage(order) {
-  const totalQty = order.items.reduce((sum, item) => sum + item.qty, 0);
-
-  let msg = `📦 *PEDIDO # ${order.id}*\n`;
-  msg += `━━━━━━━━━━━━━━\n`;
-  msg += `👤 ${order.clientName} (${order.clientId})\n`;
-  msg += `📅 ${formatDate(order.date)}\n`;
-  msg += `📞 ${order.clientPhone}\n`;
-  msg += `💼 ${order.clientType}\n`;
-  msg += `━━━━━━━━━━━━━━\n`;
-  msg += `*PRODUCTOS (${totalQty} uds):*\n\n`;
-
-  order.items.forEach((item, i) => {
-    msg += `${i + 1}. ${item.name} (${item.reference})\n`;
-    msg += `    ${item.qty} x ${formatCurrency(item.price)} = ${formatCurrency(item.subtotal)}\n\n`;
-  });
-
-  msg += `━━━━━━━━━━━━━━\n`;
-  msg += `💰 *TOTAL A PAGAR: ${formatCurrency(order.total)}*\n`;
-  msg += `📋 Estado: Pendiente`;
-
-  return msg;
-}
-
-function generateClientMessage(order) {
-  let msg = `✅ *¡Su pedido #${order.id} fue recibido!*\n\n`;
-  msg += `Total: ${formatCurrency(order.total)}\n`;
-  msg += `Le contactaremos pronto.\n\n`;
-  msg += `Gracias por su compra. 🛍️`;
-  return msg;
-}
-
-function showSuccessOverlay(order, waUrl) {
-  const overlay = document.getElementById('success-overlay');
-  document.getElementById('success-order-id').textContent = order.id;
-  document.getElementById('success-total').textContent = formatCurrency(order.total);
-  document.getElementById('wa-vendor-link').href = waUrl;
-
-  // Client confirmation WhatsApp link
-  const clientMsg = generateClientMessage(order);
-  const clientWaUrl = `https://wa.me/${order.clientPhone.replace('+', '')}?text=${encodeURIComponent(clientMsg)}`;
-  document.getElementById('wa-client-link').href = clientWaUrl;
-
-  overlay.classList.add('show');
-}
-
-function closeSuccessOverlay() {
-  document.getElementById('success-overlay').classList.remove('show');
-  navigateTo('home');
-}
-
-// ---- ORDER HISTORY ----
-function renderOrders() {
-  const container = document.getElementById('orders-list');
-  const emptyState = document.getElementById('orders-empty');
-
-  const userOrders = state.orders.filter(o => o.clientId === state.currentUser?.id).reverse();
-
-  if (userOrders.length === 0) {
-    if (container) container.innerHTML = '';
-    if (emptyState) emptyState.style.display = 'block';
-    return;
-  }
-
-  if (emptyState) emptyState.style.display = 'none';
-
-  container.innerHTML = userOrders.map(order => {
-    const statusClass = order.status === 'Pendiente' ? 'pending' : order.status === 'Enviado' ? 'sent' : 'cancelled';
-    const statusLabel = order.status === 'Pendiente' ? '⏳ Pendiente' : order.status === 'Enviado' ? '✅ Enviado' : '❌ Cancelado';
-    const safeOrderId = escapeHtml(order.id);
-
-    return `
-      <div class="order-card" onclick="toggleOrderDetails(this)">
-        <div class="order-card-header">
-          <span class="order-id">${safeOrderId}</span>
-          <span class="order-status ${statusClass}">${statusLabel}</span>
-        </div>
-        <div class="order-card-body">
-          <span class="order-date">${formatDate(order.date)}</span>
-          <span class="order-total">${formatCurrency(order.total)}</span>
-        </div>
-        <div class="order-details-list">
-          ${order.items.map(item => `
-            <div class="order-detail-item">
-              <span>${escapeHtml(item.name)} x${item.qty}</span>
-              <span>${formatCurrency(item.subtotal)}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function toggleOrderDetails(card) {
-  card.classList.toggle('expanded');
-}
 
 // ---- INITIALIZATION (consolidated single listener) ----
 document.addEventListener('DOMContentLoaded', () => {
