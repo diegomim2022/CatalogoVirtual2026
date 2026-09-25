@@ -1,10 +1,13 @@
 // Service Worker — Catálogo Digital de Pedidos
-const CACHE_NAME = 'catalogo-v3.3';
+const CACHE_NAME = 'catalogo-v3.4';
 const STATIC_ASSETS = [
     './',
     'index.html',
     'styles.css',
-    'app.js',
+    'js/main.js',
+    'js/auth.js',
+    'js/admin.js',
+    'js/data.js',
     'js/cart.js',
     'js/orders.js',
     'js/zoom.js',

@@ -47,6 +47,13 @@ export function startPromoRotation() {
   }, 5000);
 }
 
+export function stopPromoRotation() {
+  if (promoInterval) {
+    clearInterval(promoInterval);
+    promoInterval = null;
+  }
+}
+
 export function getFilteredProducts() {
   let products = [...PRODUCTS];
 
