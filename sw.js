@@ -1,5 +1,5 @@
 // Service Worker — Catálogo Digital de Pedidos
-const CACHE_NAME = 'catalogo-v3.4';
+const CACHE_NAME = 'catalogo-v3.5';
 const STATIC_ASSETS = [
     './',
     'index.html',
@@ -15,6 +15,10 @@ const STATIC_ASSETS = [
     'js/detail.js',
     'nano.js',
     'LogoMas.png',
+    'icon-192.png',
+    'icon-512.png',
+    'favicon-32.png',
+    'apple-touch-icon.png',
     'manifest.json'
 ];
 

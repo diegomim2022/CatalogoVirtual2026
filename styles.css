@@ -264,8 +264,8 @@ body {
 }
 
 .login-logo .logo-img {
-    width: 90px;
-    height: 90px;
+    width: 110px;
+    height: auto;
     object-fit: contain;
     margin: 0 auto 16px;
     display: block;
