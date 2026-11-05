@@ -94,7 +94,7 @@ export function handleWholesaleLogin(e) {
 export function handlePostLogin() {
   const urlParams = new URLSearchParams(window.location.search);
   const prodId = urlParams.get('producto');
-  const productExists = PRODUCTS.some(p => p.id === prodId);
+  const productExists = PRODUCTS.some(p => p.id === prodId || p.reference === prodId || p.rawId === prodId);
 
   if (prodId && productExists) {
     openProduct(prodId);

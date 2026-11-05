@@ -20,7 +20,9 @@ import { openZoom } from './zoom.js';
 import { renderCatalog } from './catalog.js';
 
 export function openProduct(productId) {
-  state.selectedProduct = PRODUCTS.find(p => p.id === productId);
+  state.selectedProduct = PRODUCTS.find(p => p.id === productId) ||
+                          PRODUCTS.find(p => p.reference === productId) ||
+                          PRODUCTS.find(p => p.rawId === productId);
   state.detailQty = 1;
   state.currentDetailImageIndex = 0;
 

@@ -75,17 +75,27 @@ export function showNetworkError() {
   }
 }
 
-export async function fetchSheetData(gid) {
+export async function fetchSheetData(gid, force = false) {
   // Check sessionStorage cache first
   const cacheKey = `sheet_cache_${gid}_v3`;
   const cacheTimeKey = `sheet_cache_time_${gid}`;
-  try {
-    const cached = sessionStorage.getItem(cacheKey);
-    const cachedTime = sessionStorage.getItem(cacheTimeKey);
-    if (cached && cachedTime && (Date.now() - parseInt(cachedTime)) < CONFIG.cacheExpiry) {
-      return JSON.parse(cached);
-    }
-  } catch (e) { /* sessionStorage not available, proceed */ }
+  
+  // Si la página se recarga manualmente (F5 / reload) o se fuerza, invalidar caché local para sincronizar con Google
+  const isReload = window.performance?.getEntriesByType?.('navigation')?.[0]?.type === 'reload';
+  if (isReload || force) {
+    try {
+      sessionStorage.removeItem(cacheKey);
+      sessionStorage.removeItem(cacheTimeKey);
+    } catch (e) { /* ignore */ }
+  } else {
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      const cachedTime = sessionStorage.getItem(cacheTimeKey);
+      if (cached && cachedTime && (Date.now() - parseInt(cachedTime)) < CONFIG.cacheExpiry) {
+        return JSON.parse(cached);
+      }
+    } catch (e) { /* sessionStorage not available, proceed */ }
+  }
 
   const url = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${gid}&t=${Date.now()}`;
   try {
@@ -120,16 +130,29 @@ export async function initData() {
   ]);
 
   if (sheetProducts && sheetProducts.length > 0) {
+    const seenIds = new Map();
     setProducts(sheetProducts
       .filter(p => p.idproducto || p['ID Producto'] || p.id || p[''])
-      .map(p => {
+      .map((p, idx) => {
         const getV = (k) => {
           const n = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
           return p[n] || p[k] || "";
         };
 
+        const rawId = (getV('ID Producto') || p[''] || `P_${idx + 1}`).trim();
+        let uniqueId = rawId;
+        if (seenIds.has(uniqueId)) {
+          const count = seenIds.get(rawId) + 1;
+          seenIds.set(rawId, count);
+          const ref = getV('Referencia').replace(/[^a-zA-Z0-9_-]/g, '');
+          uniqueId = ref ? `${rawId}_${ref}` : `${rawId}_${count}`;
+        } else {
+          seenIds.set(rawId, 1);
+        }
+
         return {
-          id: getV('ID Producto') || p[''] || '',
+          id: uniqueId,
+          rawId: rawId,
           photo: transformDriveUrl(getV('Foto')) || IMG_PLACEHOLDER,
           photos: [getV('Foto'), getV('Foto2'), getV('Foto3'), getV('Foto4')].map(url => transformDriveUrl(url)).filter(f => f && f.trim() !== ''),
           video: getV('Video') || '',
