@@ -265,11 +265,18 @@ export function renderProducts() {
       badgeHtml = `<span class="product-badge oferta">Oferta</span>`;
     }
 
+    const hasVideo = product.video && typeof product.video === 'string' && product.video.trim() !== '';
+    let videoBadgeHtml = '';
+    if (hasVideo) {
+      videoBadgeHtml = `<button type="button" class="product-video-badge" onclick="event.stopPropagation(); openProduct('${safeId}', true)" title="Ver video">🎬 Video</button>`;
+    }
+
     return `
       <div class="product-card" onclick="openProduct('${safeId}')">
         <div class="product-card-image">
           <img src="${safePhoto}" alt="${safeName}" data-drive-id="${driveId || ''}" loading="lazy" onerror="handleImgError(this)">
           ${badgeHtml}
+          ${videoBadgeHtml}
           <span class="stock-badge ${inStock ? 'in-stock' : 'out-of-stock'}">
             ${stockIndicator}
           </span>

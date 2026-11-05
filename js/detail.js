@@ -19,11 +19,12 @@ import {
 import { openZoom } from './zoom.js';
 import { renderCatalog } from './catalog.js';
 
-export function openProduct(productId) {
+export function openProduct(productId, startAtVideo = false) {
   state.selectedProduct = PRODUCTS.find(p => p.id === productId) ||
                           PRODUCTS.find(p => p.reference === productId) ||
                           PRODUCTS.find(p => p.rawId === productId);
   state.detailQty = 1;
+  state.startAtVideo = Boolean(startAtVideo);
   state.currentDetailImageIndex = 0;
 
   // Track product view for analytics
@@ -77,6 +78,7 @@ export function renderDetail() {
         return `
     <div class="gallery-video-slide">
       <video controls playsinline preload="metadata" src="${escapeHtml(item.src)}" poster="${escapeHtml(item.poster)}"></video>
+      <button type="button" class="gallery-video-play" onclick="event.stopPropagation(); handleVideoPlayClick(this)" aria-label="Reproducir video">▶</button>
     </div>
   `;
       }
@@ -92,12 +94,40 @@ export function renderDetail() {
   `;
   }).join('');
 
-  // Add scroll listener for dots
+  // Sincronizar eventos de video y botón Play
+  wrapper.querySelectorAll('.gallery-video-slide').forEach(slide => {
+    const video = slide.querySelector('video');
+    const playBtn = slide.querySelector('.gallery-video-play');
+    if (video && playBtn) {
+      video.addEventListener('play', () => { playBtn.style.display = 'none'; });
+      video.addEventListener('pause', () => { playBtn.style.display = 'flex'; });
+      video.addEventListener('ended', () => { playBtn.style.display = 'flex'; });
+      video.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (video.paused) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      });
+    }
+  });
+
+  // Add scroll listener for dots and auto-pause inactive video
   wrapper.onscroll = () => {
     const index = Math.round(wrapper.scrollLeft / (wrapper.clientWidth || 1));
     if (state.currentDetailImageIndex !== index) {
       state.currentDetailImageIndex = index;
       updateDetailDots(media.length);
+
+      // Pausar video si nos desplazamos a otra diapositiva
+      wrapper.querySelectorAll('.gallery-video-slide').forEach(slide => {
+        const slideIdx = Array.from(wrapper.children).indexOf(slide);
+        if (slideIdx !== index) {
+          const v = slide.querySelector('video');
+          if (v && !v.paused) v.pause();
+        }
+      });
     }
   };
 
@@ -108,6 +138,10 @@ export function renderDetail() {
   let isDraggingGallery = false;
 
   wrapper.onmousedown = (e) => {
+    // Si se hace clic en controles o en el botón de reproducción del video, no iniciar arrastre
+    if (e.target.closest('.gallery-video-play') || e.target.tagName === 'VIDEO') {
+      return;
+    }
     isDown = true;
     wrapper.style.cursor = 'grabbing';
     wrapper.style.scrollSnapType = 'none'; // Disable snapping while dragging
@@ -141,9 +175,27 @@ export function renderDetail() {
     wrapper.scrollLeft = scrollLeft - walk;
   };
 
-  state.currentDetailImageIndex = 0; // Reset index to first image
-  updateDetailDots(media.length);
-  wrapper.scrollLeft = 0; // Ensure starts at beginning
+  // Si se solicitó abrir directamente en video, posicionar en el slide del video
+  const videoIndex = media.findIndex(m => m.type === 'video');
+  if (state.startAtVideo && videoIndex !== -1) {
+    state.startAtVideo = false;
+    state.currentDetailImageIndex = videoIndex;
+    updateDetailDots(media.length);
+    setTimeout(() => {
+      setDetailImage(videoIndex);
+      const targetVideo = wrapper.querySelectorAll('.gallery-video-slide video')[0];
+      if (targetVideo) {
+        targetVideo.play().catch(() => {
+          targetVideo.muted = true;
+          targetVideo.play().catch(() => {});
+        });
+      }
+    }, 150);
+  } else {
+    state.currentDetailImageIndex = 0; // Reset index to first image
+    updateDetailDots(media.length);
+    wrapper.scrollLeft = 0; // Ensure starts at beginning
+  }
 
   // Arrow buttons visibility
   const prevBtn = document.getElementById('gallery-btn-prev');
@@ -283,6 +335,26 @@ export function setDetailImage(index) {
     behavior: 'smooth'
   });
 }
+
+window.handleVideoPlayClick = function (btn) {
+  const slide = btn.closest('.gallery-video-slide');
+  if (!slide) return;
+  const video = slide.querySelector('video');
+  if (!video) return;
+  if (video.paused) {
+    video.play().then(() => {
+      btn.style.display = 'none';
+    }).catch(() => {
+      video.muted = true;
+      video.play().then(() => {
+        btn.style.display = 'none';
+      }).catch(() => {});
+    });
+  } else {
+    video.pause();
+    btn.style.display = 'flex';
+  }
+};
 
 export function changeDetailImage(delta) {
   const product = state.selectedProduct;
